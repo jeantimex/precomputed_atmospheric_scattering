@@ -70,9 +70,39 @@ export class Demo {
       antialias: true,
       powerPreference: 'high-performance'
     });
-    this.renderer.setPixelRatio(window.devicePixelRatio);
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    
+    // Set pixel ratio with a cap to avoid performance issues on high-DPI devices
+    const maxPixelRatio = 2.0; // Cap pixel ratio for performance
+    const devicePixelRatio = Math.min(window.devicePixelRatio, maxPixelRatio);
+    this.renderer.setPixelRatio(devicePixelRatio);
+    
+    // Set initial size
+    this.updateRendererSize();
     // No need to append the canvas as it's already in the DOM
+  }
+
+  /**
+   * Update renderer size based on current viewport dimensions
+   * Extracted as a separate method to avoid code duplication
+   */
+  updateRendererSize() {
+    // Get the current viewport dimensions
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    
+    // Update renderer size
+    this.renderer.setSize(width, height, false); // false = don't update style
+    
+    // Update canvas style directly for better mobile handling
+    const canvas = this.renderer.domElement;
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
+    
+    // Update camera aspect ratio
+    if (this.camera) {
+      this.camera.aspect = width / height;
+      this.camera.updateProjectionMatrix();
+    }
   }
 
   /**
@@ -280,10 +310,43 @@ export class Demo {
    * Set up event listeners for window resize and keyboard controls
    */
   setupEventListeners() {
+    // Use both resize event and ResizeObserver for better responsiveness
     window.addEventListener('resize', this.onWindowResize.bind(this));
+    
+    // Use ResizeObserver if available for more reliable size change detection
+    if (typeof ResizeObserver !== 'undefined') {
+      this.resizeObserver = new ResizeObserver(this.onContainerResize.bind(this));
+      this.resizeObserver.observe(this.container);
+    }
+    
+    // Add orientation change listener for mobile devices
+    window.addEventListener('orientationchange', this.onWindowResize.bind(this));
+    
     // Add keyboard event listener for preset views
     window.addEventListener('keypress', this.onKeyPress.bind(this));
     // No need to add pointer events here as they're now in setupControls
+  }
+
+  /**
+   * Handle container resize event from ResizeObserver
+   */
+  onContainerResize() {
+    this.updateRendererSize();
+  }
+
+  /**
+   * Handle window resize event to update renderer and camera
+   */
+  onWindowResize() {
+    // Check if device pixel ratio has changed (e.g., when moving between displays)
+    const maxPixelRatio = 2.0;
+    const currentPixelRatio = Math.min(window.devicePixelRatio, maxPixelRatio);
+    
+    if (this.renderer.getPixelRatio() !== currentPixelRatio) {
+      this.renderer.setPixelRatio(currentPixelRatio);
+    }
+    
+    this.updateRendererSize();
   }
 
   /**
@@ -539,18 +602,6 @@ export class Demo {
     
     this.camera.position.set(x, y, z);
     this.camera.lookAt(0, 0, 0);
-  }
-
-  /**
-   * Handle window resize event to update renderer and camera
-   */
-  onWindowResize() {
-    const canvas = document.getElementById('glcanvas');
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
-    canvas.style.width = `${window.innerWidth}px`;
-    canvas.style.height = `${window.innerHeight}px`;
-    this.camera.aspect = window.innerWidth / window.innerHeight;
-    this.camera.updateProjectionMatrix();
   }
 
   /**

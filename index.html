@@ -33,12 +33,9 @@
         pointer-events: none; /* Make the help text not receive pointer events */
         text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8); /* Add text shadow for better readability */
       }
-      #help * {
-        pointer-events: none; /* Ensure all child elements don't receive pointer events */
-      }
       a {
         color: #8cf;
-        pointer-events: auto !important; /* Allow links to receive pointer events, override the above rule */
+        pointer-events: auto; /* Allow links to receive pointer events */
       }
       ul {
         padding-left: 1em;
@@ -47,7 +44,7 @@
         list-style: none;
       }
     </style>
-    <script type="module" crossorigin src="/precomputed_atmospheric_scattering/assets/main-B8ztbc1k.js"></script>
+    <script type="module" crossorigin src="/precomputed_atmospheric_scattering/assets/main-CyFVxgEN.js"></script>
   </head>
   <body>
     <canvas id="glcanvas" width="400" height="300"></canvas>

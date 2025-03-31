@@ -116,9 +116,12 @@ export class Demo {
     this.previousPointerX = 0;
     this.previousPointerY = 0;
     
-    // For pinch-to-zoom
+    // For pinch-to-zoom and two-finger gestures
     this.previousTouchDistance = 0;
     this.activeTouches = [];
+    this.previousTouchY = 0;
+    this.twoFingerMode = null; // Can be 'zoom' or 'swipe'
+    this.gestureDetectionThreshold = 10; // Pixels to determine gesture type
     
     // Initial camera angles (similar to the original implementation)
     this.viewZenithAngleRadians = 1.47;    // Angle from zenith
@@ -417,21 +420,31 @@ export class Demo {
    * @param {TouchEvent} event - The touch event
    */
   onTouchStart(event) {
-    // Store touch points for pinch-to-zoom
+    // Prevent default to avoid page scrolling
+    event.preventDefault();
+    
+    // Store touch points
     this.activeTouches = Array.from(event.touches);
     
+    // Reset gesture mode
+    this.twoFingerMode = null;
+    
     if (this.activeTouches.length === 2) {
-      // Calculate initial distance between two touch points for pinch-to-zoom
       const touch1 = this.activeTouches[0];
       const touch2 = this.activeTouches[1];
+      
+      // Calculate initial distance between two touch points for pinch-to-zoom
       this.previousTouchDistance = Math.hypot(
         touch2.clientX - touch1.clientX,
         touch2.clientY - touch1.clientY
       );
+      
+      // Store the average Y position for detecting vertical swipes
+      this.previousTouchY = (touch1.clientY + touch2.clientY) / 2;
+      
+      // Cancel any existing drag operation when two fingers are used
+      this.drag = undefined;
     }
-    
-    // Prevent default to avoid page scrolling
-    event.preventDefault();
   }
   
   /**
@@ -439,29 +452,66 @@ export class Demo {
    * @param {TouchEvent} event - The touch event
    */
   onTouchMove(event) {
-    // Handle pinch-to-zoom with two fingers
+    // Prevent default to avoid page scrolling
+    event.preventDefault();
+    
+    // Handle two-finger gestures
     if (event.touches.length === 2) {
       const touch1 = event.touches[0];
       const touch2 = event.touches[1];
+      
+      // Calculate current distance between touch points
       const currentDistance = Math.hypot(
         touch2.clientX - touch1.clientX,
         touch2.clientY - touch1.clientY
       );
       
-      if (this.previousTouchDistance > 0) {
-        // Calculate zoom factor based on the change in distance
-        const zoomFactor = currentDistance / this.previousTouchDistance;
-        
-        // Apply zoom (pinch in = zoom out, pinch out = zoom in)
-        this.viewDistanceMeters /= zoomFactor;
-        this.updateCameraPosition();
+      // Calculate current average Y position
+      const currentTouchY = (touch1.clientY + touch2.clientY) / 2;
+      
+      // Calculate changes in distance and position
+      const deltaDistance = Math.abs(currentDistance - this.previousTouchDistance);
+      const deltaY = Math.abs(currentTouchY - this.previousTouchY);
+      
+      // If gesture mode isn't determined yet, determine it based on initial movement
+      if (!this.twoFingerMode) {
+        if (deltaDistance > this.gestureDetectionThreshold && deltaDistance > deltaY) {
+          this.twoFingerMode = 'zoom';
+        } else if (deltaY > this.gestureDetectionThreshold && deltaY > deltaDistance) {
+          this.twoFingerMode = 'swipe';
+        }
       }
       
-      this.previousTouchDistance = currentDistance;
+      // Apply the appropriate gesture behavior
+      if (this.twoFingerMode === 'zoom') {
+        // Pinch-to-zoom behavior
+        if (this.previousTouchDistance > 0) {
+          // Calculate zoom factor based on the change in distance
+          const zoomFactor = currentDistance / this.previousTouchDistance;
+          
+          // Apply zoom (pinch in = zoom out, pinch out = zoom in)
+          this.viewDistanceMeters /= zoomFactor;
+          this.updateCameraPosition();
+        }
+        this.previousTouchDistance = currentDistance;
+      } 
+      else if (this.twoFingerMode === 'swipe') {
+        // Two-finger vertical swipe behavior - adjust camera tilt (zenith angle)
+        const kTiltScale = 0.005;
+        const deltaTilt = (currentTouchY - this.previousTouchY) * kTiltScale;
+        
+        // Update camera tilt (zenith angle)
+        this.viewZenithAngleRadians -= deltaTilt;
+        
+        // Clamp the zenith angle to prevent flipping or looking too far down
+        this.viewZenithAngleRadians = Math.max(0.1, Math.min(Math.PI / 2 - 0.1, this.viewZenithAngleRadians));
+        
+        // Update camera position
+        this.updateCameraPosition();
+        
+        this.previousTouchY = currentTouchY;
+      }
     }
-    
-    // Prevent default to avoid page scrolling
-    event.preventDefault();
   }
   
   /**
@@ -469,11 +519,12 @@ export class Demo {
    * @param {TouchEvent} event - The touch event
    */
   onTouchEnd(event) {
-    this.activeTouches = Array.from(event.touches);
-    this.previousTouchDistance = 0;
-    
     // Prevent default behavior
     event.preventDefault();
+    
+    this.activeTouches = Array.from(event.touches);
+    this.previousTouchDistance = 0;
+    this.twoFingerMode = null;
   }
   
   /**

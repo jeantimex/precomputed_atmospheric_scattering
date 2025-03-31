@@ -27,14 +27,34 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+/**
+ * Atmospheric scattering shader
+ * 
+ * This shader implements a physically-based atmospheric scattering model
+ * based on precomputed atmospheric scattering. It simulates:
+ * 
+ * 1. Rayleigh scattering (scattering by air molecules)
+ * 2. Mie scattering (scattering by aerosols/particles)
+ * 3. Absorption by ozone
+ * 4. Multiple scattering effects
+ * 5. Ground reflections
+ * 
+ * The implementation uses precomputed lookup tables stored in textures
+ * to avoid expensive real-time calculations.
+ */
 export const atmosphereShader = /* glsl */ `
+  // Set precision for floating point calculations
   precision highp float;
   precision highp sampler3D;
+  
+  // Define macros for function parameter qualifiers
   #define IN(x) const in x
   #define OUT(x) out x
   #define TEMPLATE(x)
   #define TEMPLATE_ARGUMENT(x)
   #define assert(x)
+  
+  // Texture dimensions for the precomputed lookup tables
   const int TRANSMITTANCE_TEXTURE_WIDTH = 256;
   const int TRANSMITTANCE_TEXTURE_HEIGHT = 64;
   const int SCATTERING_TEXTURE_R_SIZE = 32;
@@ -45,6 +65,7 @@ export const atmosphereShader = /* glsl */ `
   const int IRRADIANCE_TEXTURE_HEIGHT = 16;
   #define COMBINED_SCATTERING_TEXTURES
 
+  // Type definitions for physical quantities to improve code readability
   #define Length float
   #define Wavelength float
   #define Angle float
@@ -67,6 +88,8 @@ export const atmosphereShader = /* glsl */ `
   #define LuminousIntensity float
   #define Luminance float
   #define Illuminance float
+  
+  // Vector type definitions for spectral quantities (RGB)
   #define AbstractSpectrum vec3
   #define DimensionlessSpectrum vec3
   #define PowerSpectrum vec3
@@ -74,16 +97,22 @@ export const atmosphereShader = /* glsl */ `
   #define RadianceSpectrum vec3
   #define RadianceDensitySpectrum vec3
   #define ScatteringSpectrum vec3
+  
+  // Vector type definitions for 3D quantities
   #define Position vec3
   #define Direction vec3
   #define Luminance3 vec3
   #define Illuminance3 vec3
+  
+  // Texture type definitions
   #define TransmittanceTexture sampler2D
   #define AbstractScatteringTexture sampler3D
   #define ReducedScatteringTexture sampler3D
   #define ScatteringTexture sampler3D
   #define ScatteringDensityTexture sampler3D
   #define IrradianceTexture sampler2D
+  
+  // Physical unit definitions
   const Length m = 1.0;
   const Wavelength nm = 1.0;
   const Angle rad = 1.0;
@@ -107,6 +136,8 @@ export const atmosphereShader = /* glsl */ `
   const LuminousIntensity kcd = 1000.0 * cd;
   const Luminance cd_per_square_meter = cd / m2;
   const Luminance kcd_per_square_meter = kcd / m2;
+  
+  // Density profile layer structure for modeling atmosphere density variations with altitude
   struct DensityProfileLayer {
     Length width;
     Number exp_term;
@@ -114,9 +145,13 @@ export const atmosphereShader = /* glsl */ `
     InverseLength linear_term;
     Number constant_term;
   };
+  
+  // Complete density profile consisting of two layers
   struct DensityProfile {
     DensityProfileLayer layers[2];
   };
+  
+  // Main atmosphere parameters structure containing all physical properties
   struct AtmosphereParameters {
     IrradianceSpectrum solar_irradiance;
     Angle sun_angular_radius;
@@ -133,6 +168,8 @@ export const atmosphereShader = /* glsl */ `
     DimensionlessSpectrum ground_albedo;
     Number mu_s_min;
   };
+  
+  // Predefined atmosphere parameters for Earth
   const AtmosphereParameters ATMOSPHERE = AtmosphereParameters(
   vec3(1.474000,1.850400,1.911980),
   0.004675,
@@ -148,21 +185,43 @@ export const atmosphereShader = /* glsl */ `
   vec3(0.000650,0.001881,0.000085),
   vec3(0.100000,0.100000,0.100000),
   -0.207912);
+  
+  // Conversion factors from spectral radiance to luminance
   const vec3 SKY_SPECTRAL_RADIANCE_TO_LUMINANCE = vec3(114974.916437,71305.954816,65310.548555);
   const vec3 SUN_SPECTRAL_RADIANCE_TO_LUMINANCE = vec3(98242.786222,69954.398112,66475.012354);
 
+  /**
+   * Clamps a cosine value to the valid range [-1, 1]
+   */
   Number ClampCosine(Number mu) {
     return clamp(mu, Number(-1.0), Number(1.0));
   }
+  
+  /**
+   * Ensures distance values are non-negative
+   */
   Length ClampDistance(Length d) {
     return max(d, 0.0 * m);
   }
+  
+  /**
+   * Clamps a radius value between the bottom and top atmosphere boundaries
+   */
   Length ClampRadius(IN(AtmosphereParameters) atmosphere, Length r) {
     return clamp(r, atmosphere.bottom_radius, atmosphere.top_radius);
   }
+  
+  /**
+   * Safely computes the square root, ensuring the argument is non-negative
+   */
   Length SafeSqrt(Area a) {
     return sqrt(max(a, 0.0 * m2));
   }
+  
+  /**
+   * Computes the distance from a point in the atmosphere to the top boundary
+   * along a ray with direction mu
+   */
   Length DistanceToTopAtmosphereBoundary(IN(AtmosphereParameters) atmosphere,
       Length r, Number mu) {
     assert(r <= atmosphere.top_radius);
@@ -171,6 +230,11 @@ export const atmosphereShader = /* glsl */ `
         atmosphere.top_radius * atmosphere.top_radius;
     return ClampDistance(-r * mu + SafeSqrt(discriminant));
   }
+  
+  /**
+   * Computes the distance from a point in the atmosphere to the bottom boundary
+   * along a ray with direction mu
+   */
   Length DistanceToBottomAtmosphereBoundary(IN(AtmosphereParameters) atmosphere,
       Length r, Number mu) {
     assert(r >= atmosphere.bottom_radius);
@@ -179,6 +243,11 @@ export const atmosphereShader = /* glsl */ `
         atmosphere.bottom_radius * atmosphere.bottom_radius;
     return ClampDistance(-r * mu - SafeSqrt(discriminant));
   }
+  
+  /**
+   * Determines if a ray from a point in the atmosphere with direction mu
+   * intersects the ground
+   */
   bool RayIntersectsGround(IN(AtmosphereParameters) atmosphere,
       Length r, Number mu) {
     assert(r >= atmosphere.bottom_radius);
@@ -186,16 +255,29 @@ export const atmosphereShader = /* glsl */ `
     return mu < 0.0 && r * r * (mu * mu - 1.0) +
         atmosphere.bottom_radius * atmosphere.bottom_radius >= 0.0 * m2;
   }
+  
+  /**
+   * Computes the density at a given altitude for a specific density layer profile
+   */
   Number GetLayerDensity(IN(DensityProfileLayer) layer, Length altitude) {
     Number density = layer.exp_term * exp(layer.exp_scale * altitude) +
         layer.linear_term * altitude + layer.constant_term;
     return clamp(density, Number(0.0), Number(1.0));
   }
+  
+  /**
+   * Computes the density at a given altitude using the appropriate layer profile
+   */
   Number GetProfileDensity(IN(DensityProfile) profile, Length altitude) {
     return altitude < profile.layers[0].width ?
         GetLayerDensity(profile.layers[0], altitude) :
         GetLayerDensity(profile.layers[1], altitude);
   }
+  
+  /**
+   * Computes the optical length (integral of density) from a point to the top
+   * of the atmosphere along a ray with direction mu
+   */
   Length ComputeOpticalLengthToTopAtmosphereBoundary(
       IN(AtmosphereParameters) atmosphere, IN(DensityProfile) profile,
       Length r, Number mu) {
@@ -214,6 +296,10 @@ export const atmosphereShader = /* glsl */ `
     }
     return result;
   }
+  
+  /**
+   * Computes the transmittance to the top of the atmosphere along a ray with direction mu
+   */
   DimensionlessSpectrum ComputeTransmittanceToTopAtmosphereBoundary(
       IN(AtmosphereParameters) atmosphere, Length r, Number mu) {
     assert(r >= atmosphere.bottom_radius && r <= atmosphere.top_radius);
@@ -229,12 +315,24 @@ export const atmosphereShader = /* glsl */ `
             ComputeOpticalLengthToTopAtmosphereBoundary(
                 atmosphere, atmosphere.absorption_density, r, mu)));
   }
+  
+  /**
+   * Converts a unit range value to a texture coordinate
+   */
   Number GetTextureCoordFromUnitRange(Number x, int texture_size) {
     return 0.5 / Number(texture_size) + x * (1.0 - 1.0 / Number(texture_size));
   }
+  
+  /**
+   * Converts a texture coordinate to a unit range value
+   */
   Number GetUnitRangeFromTextureCoord(Number u, int texture_size) {
     return (u - 0.5 / Number(texture_size)) / (1.0 - 1.0 / Number(texture_size));
   }
+  
+  /**
+   * Computes the transmittance texture coordinates from atmosphere parameters r and mu
+   */
   vec2 GetTransmittanceTextureUvFromRMu(IN(AtmosphereParameters) atmosphere,
       Length r, Number mu) {
     assert(r >= atmosphere.bottom_radius && r <= atmosphere.top_radius);
@@ -251,6 +349,10 @@ export const atmosphereShader = /* glsl */ `
     return vec2(GetTextureCoordFromUnitRange(x_mu, TRANSMITTANCE_TEXTURE_WIDTH),
                 GetTextureCoordFromUnitRange(x_r, TRANSMITTANCE_TEXTURE_HEIGHT));
   }
+  
+  /**
+   * Converts transmittance texture coordinates to atmosphere parameters r and mu
+   */
   void GetRMuFromTransmittanceTextureUv(IN(AtmosphereParameters) atmosphere,
       IN(vec2) uv, OUT(Length) r, OUT(Number) mu) {
     assert(uv.x >= 0.0 && uv.x <= 1.0);
@@ -267,6 +369,11 @@ export const atmosphereShader = /* glsl */ `
     mu = d == 0.0 * m ? Number(1.0) : (H * H - rho * rho - d * d) / (2.0 * r * d);
     mu = ClampCosine(mu);
   }
+  
+  /**
+   * Computes the transmittance to the top of the atmosphere along a ray with direction mu
+   * using the precomputed transmittance texture
+   */
   DimensionlessSpectrum ComputeTransmittanceToTopAtmosphereBoundaryTexture(
       IN(AtmosphereParameters) atmosphere, IN(vec2) frag_coord) {
     const vec2 TRANSMITTANCE_TEXTURE_SIZE =
@@ -277,6 +384,11 @@ export const atmosphereShader = /* glsl */ `
         atmosphere, frag_coord / TRANSMITTANCE_TEXTURE_SIZE, r, mu);
     return ComputeTransmittanceToTopAtmosphereBoundary(atmosphere, r, mu);
   }
+  
+  /**
+   * Retrieves the transmittance to the top of the atmosphere along a ray with direction mu
+   * using the precomputed transmittance texture
+   */
   DimensionlessSpectrum GetTransmittanceToTopAtmosphereBoundary(
       IN(AtmosphereParameters) atmosphere,
       IN(TransmittanceTexture) transmittance_texture,
@@ -285,6 +397,10 @@ export const atmosphereShader = /* glsl */ `
     vec2 uv = GetTransmittanceTextureUvFromRMu(atmosphere, r, mu);
     return DimensionlessSpectrum(texture(transmittance_texture, uv));
   }
+  
+  /**
+   * Computes the transmittance along a ray with direction mu and distance d
+   */
   DimensionlessSpectrum GetTransmittance(
       IN(AtmosphereParameters) atmosphere,
       IN(TransmittanceTexture) transmittance_texture,
@@ -310,6 +426,10 @@ export const atmosphereShader = /* glsl */ `
           DimensionlessSpectrum(1.0));
     }
   }
+  
+  /**
+   * Computes the transmittance to the sun along a ray with direction mu
+   */
   DimensionlessSpectrum GetTransmittanceToSun(
       IN(AtmosphereParameters) atmosphere,
       IN(TransmittanceTexture) transmittance_texture,
@@ -322,6 +442,10 @@ export const atmosphereShader = /* glsl */ `
                   sin_theta_h * atmosphere.sun_angular_radius / rad,
                   mu_s - cos_theta_h);
   }
+  
+  /**
+   * Computes the single scattering integrand for a ray with direction mu and distance d
+   */
   void ComputeSingleScatteringIntegrand(
       IN(AtmosphereParameters) atmosphere,
       IN(TransmittanceTexture) transmittance_texture,
@@ -341,6 +465,10 @@ export const atmosphereShader = /* glsl */ `
     mie = transmittance * GetProfileDensity(
         atmosphere.mie_density, r_d - atmosphere.bottom_radius);
   }
+  
+  /**
+   * Computes the distance to the nearest atmosphere boundary along a ray with direction mu
+   */
   Length DistanceToNearestAtmosphereBoundary(IN(AtmosphereParameters) atmosphere,
       Length r, Number mu, bool ray_r_mu_intersects_ground) {
     if (ray_r_mu_intersects_ground) {
@@ -349,6 +477,10 @@ export const atmosphereShader = /* glsl */ `
       return DistanceToTopAtmosphereBoundary(atmosphere, r, mu);
     }
   }
+  
+  /**
+   * Computes single scattering for a ray with direction mu and distance d
+   */
   void ComputeSingleScattering(
       IN(AtmosphereParameters) atmosphere,
       IN(TransmittanceTexture) transmittance_texture,
@@ -379,14 +511,26 @@ export const atmosphereShader = /* glsl */ `
         atmosphere.rayleigh_scattering;
     mie = mie_sum * dx * atmosphere.solar_irradiance * atmosphere.mie_scattering;
   }
+  
+  /**
+   * Rayleigh phase function for scattering by air molecules
+   */
   InverseSolidAngle RayleighPhaseFunction(Number nu) {
     InverseSolidAngle k = 3.0 / (16.0 * PI * sr);
     return k * (1.0 + nu * nu);
   }
+  
+  /**
+   * Mie phase function for scattering by aerosols/particles
+   */
   InverseSolidAngle MiePhaseFunction(Number g, Number nu) {
     InverseSolidAngle k = 3.0 / (8.0 * PI * sr) * (1.0 - g * g) / (2.0 + g * g);
     return k * (1.0 + nu * nu) / pow(1.0 + g * g - 2.0 * g * nu, 1.5);
   }
+  
+  /**
+   * Computes the scattering texture coordinates from atmosphere parameters r, mu, mu_s, and nu
+   */
   vec4 GetScatteringTextureUvwzFromRMuMuSNu(IN(AtmosphereParameters) atmosphere,
       Length r, Number mu, Number mu_s, Number nu,
       bool ray_r_mu_intersects_ground) {
@@ -429,6 +573,10 @@ export const atmosphereShader = /* glsl */ `
     Number u_nu = (nu + 1.0) / 2.0;
     return vec4(u_nu, u_mu_s, u_mu, u_r);
   }
+  
+  /**
+   * Converts scattering texture coordinates to atmosphere parameters r, mu, mu_s, and nu
+   */
   void GetRMuMuSNuFromScatteringTextureUvwz(IN(AtmosphereParameters) atmosphere,
       IN(vec4) uvwz, OUT(Length) r, OUT(Number) mu, OUT(Number) mu_s,
       OUT(Number) nu, OUT(bool) ray_r_mu_intersects_ground) {
@@ -471,6 +619,11 @@ export const atmosphereShader = /* glsl */ `
       ClampCosine((H * H - d * d) / (2.0 * atmosphere.bottom_radius * d));
     nu = ClampCosine(uvwz.x * 2.0 - 1.0);
   }
+  
+  /**
+   * Converts scattering texture coordinates to atmosphere parameters r, mu, mu_s, and nu
+   * using the fragment coordinate
+   */
   void GetRMuMuSNuFromScatteringTextureFragCoord(
       IN(AtmosphereParameters) atmosphere, IN(vec3) frag_coord,
       OUT(Length) r, OUT(Number) mu, OUT(Number) mu_s, OUT(Number) nu,
@@ -492,6 +645,11 @@ export const atmosphereShader = /* glsl */ `
     nu = clamp(nu, mu * mu_s - sqrt((1.0 - mu * mu) * (1.0 - mu_s * mu_s)),
         mu * mu_s + sqrt((1.0 - mu * mu) * (1.0 - mu_s * mu_s)));
   }
+  
+  /**
+   * Computes single scattering for a ray with direction mu and distance d
+   * using the precomputed scattering texture
+   */
   void ComputeSingleScatteringTexture(IN(AtmosphereParameters) atmosphere,
       IN(TransmittanceTexture) transmittance_texture, IN(vec3) frag_coord,
       OUT(IrradianceSpectrum) rayleigh, OUT(IrradianceSpectrum) mie) {
@@ -505,6 +663,10 @@ export const atmosphereShader = /* glsl */ `
     ComputeSingleScattering(atmosphere, transmittance_texture,
         r, mu, mu_s, nu, ray_r_mu_intersects_ground, rayleigh, mie);
   }
+  
+  /**
+   * Retrieves scattering from precomputed textures for a ray with direction mu and distance d
+   */
   TEMPLATE(AbstractSpectrum)
   AbstractSpectrum GetScattering(
       IN(AtmosphereParameters) atmosphere,
@@ -524,6 +686,10 @@ export const atmosphereShader = /* glsl */ `
     return AbstractSpectrum(texture(scattering_texture, uvw0) * (1.0 - lerp) +
         texture(scattering_texture, uvw1) * lerp);
   }
+  
+  /**
+   * Retrieves scattering from precomputed textures for a ray with direction mu and distance d
+   */
   RadianceSpectrum GetScattering(
       IN(AtmosphereParameters) atmosphere,
       IN(ReducedScatteringTexture) single_rayleigh_scattering_texture,
@@ -623,6 +789,10 @@ export const atmosphereShader = /* glsl */ `
     }
     return rayleigh_mie;
   }
+  
+  /**
+   * Computes multiple scattering contribution for a ray with direction mu and distance d
+   */
   RadianceSpectrum ComputeMultipleScattering(
       IN(AtmosphereParameters) atmosphere,
       IN(TransmittanceTexture) transmittance_texture,
@@ -659,6 +829,11 @@ export const atmosphereShader = /* glsl */ `
     }
     return rayleigh_mie_sum;
   }
+  
+  /**
+   * Computes scattering density for multiple scattering calculations
+   * using the precomputed scattering density texture
+   */
   RadianceDensitySpectrum ComputeScatteringDensityTexture(
       IN(AtmosphereParameters) atmosphere,
       IN(TransmittanceTexture) transmittance_texture,
@@ -679,6 +854,11 @@ export const atmosphereShader = /* glsl */ `
         multiple_scattering_texture, irradiance_texture, r, mu, mu_s, nu,
         scattering_order);
   }
+  
+  /**
+   * Computes multiple scattering contribution for a ray with direction mu and distance d
+   * using the precomputed scattering density texture
+   */
   RadianceSpectrum ComputeMultipleScatteringTexture(
       IN(AtmosphereParameters) atmosphere,
       IN(TransmittanceTexture) transmittance_texture,
@@ -694,6 +874,10 @@ export const atmosphereShader = /* glsl */ `
         scattering_density_texture, r, mu, mu_s, nu,
         ray_r_mu_intersects_ground);
   }
+  
+  /**
+   * Computes direct irradiance from the sun
+   */
   IrradianceSpectrum ComputeDirectIrradiance(
       IN(AtmosphereParameters) atmosphere,
       IN(TransmittanceTexture) transmittance_texture,
@@ -708,6 +892,10 @@ export const atmosphereShader = /* glsl */ `
         GetTransmittanceToTopAtmosphereBoundary(
             atmosphere, transmittance_texture, r, mu_s) * average_cosine_factor;
   }
+  
+  /**
+   * Computes indirect irradiance from the sky and multiple scattering
+   */
   IrradianceSpectrum ComputeIndirectIrradiance(
       IN(AtmosphereParameters) atmosphere,
       IN(ReducedScatteringTexture) single_rayleigh_scattering_texture,
@@ -740,6 +928,10 @@ export const atmosphereShader = /* glsl */ `
     }
     return result;
   }
+  
+  /**
+   * Computes the irradiance texture coordinates from atmosphere parameters r and mu_s
+   */
   vec2 GetIrradianceTextureUvFromRMuS(IN(AtmosphereParameters) atmosphere,
       Length r, Number mu_s) {
     assert(r >= atmosphere.bottom_radius && r <= atmosphere.top_radius);
@@ -750,6 +942,10 @@ export const atmosphereShader = /* glsl */ `
     return vec2(GetTextureCoordFromUnitRange(x_mu_s, IRRADIANCE_TEXTURE_WIDTH),
                 GetTextureCoordFromUnitRange(x_r, IRRADIANCE_TEXTURE_HEIGHT));
   }
+  
+  /**
+   * Converts irradiance texture coordinates to atmosphere parameters r and mu_s
+   */
   void GetRMuSFromIrradianceTextureUv(IN(AtmosphereParameters) atmosphere,
       IN(vec2) uv, OUT(Length) r, OUT(Number) mu_s) {
     assert(uv.x >= 0.0 && uv.x <= 1.0);
@@ -772,6 +968,11 @@ export const atmosphereShader = /* glsl */ `
         atmosphere, frag_coord / IRRADIANCE_TEXTURE_SIZE, r, mu_s);
     return ComputeDirectIrradiance(atmosphere, transmittance_texture, r, mu_s);
   }
+  
+  /**
+   * Computes indirect irradiance from the sky and multiple scattering
+   * using the precomputed irradiance texture
+   */
   IrradianceSpectrum ComputeIndirectIrradianceTexture(
       IN(AtmosphereParameters) atmosphere,
       IN(ReducedScatteringTexture) single_rayleigh_scattering_texture,
@@ -786,6 +987,10 @@ export const atmosphereShader = /* glsl */ `
         single_rayleigh_scattering_texture, single_mie_scattering_texture,
         multiple_scattering_texture, r, mu_s, scattering_order);
   }
+  
+  /**
+   * Retrieves irradiance from the precomputed irradiance texture
+   */
   IrradianceSpectrum GetIrradiance(
       IN(AtmosphereParameters) atmosphere,
       IN(IrradianceTexture) irradiance_texture,
@@ -837,6 +1042,11 @@ export const atmosphereShader = /* glsl */ `
   #endif
     return scattering;
   }
+  
+  /**
+   * Computes sky radiance along a ray from the camera to a point,
+   * accounting for scattering and transmittance
+   */
   RadianceSpectrum GetSkyRadiance(
       IN(AtmosphereParameters) atmosphere,
       IN(TransmittanceTexture) transmittance_texture,
@@ -889,6 +1099,11 @@ export const atmosphereShader = /* glsl */ `
     return scattering * RayleighPhaseFunction(nu) + single_mie_scattering *
         MiePhaseFunction(atmosphere.mie_phase_function_g, nu);
   }
+  
+  /**
+   * Computes sky radiance along a ray from the camera to a point,
+   * accounting for scattering and transmittance
+   */
   RadianceSpectrum GetSkyRadianceToPoint(
       IN(AtmosphereParameters) atmosphere,
       IN(TransmittanceTexture) transmittance_texture,
@@ -944,6 +1159,10 @@ export const atmosphereShader = /* glsl */ `
     return scattering * RayleighPhaseFunction(nu) + single_mie_scattering *
         MiePhaseFunction(atmosphere.mie_phase_function_g, nu);
   }
+  
+  /**
+   * Computes sun and sky irradiance at a point
+   */
   IrradianceSpectrum GetSunAndSkyIrradiance(
       IN(AtmosphereParameters) atmosphere,
       IN(TransmittanceTexture) transmittance_texture,
@@ -959,66 +1178,105 @@ export const atmosphereShader = /* glsl */ `
             atmosphere, transmittance_texture, r, mu_s) *
         max(dot(normal, sun_direction), 0.0);
   }
+  
+  /**
+   * API for radiance calculations
+   */
   #define RADIANCE_API_ENABLED
-
-      uniform sampler2D transmittance_texture;
-      uniform sampler3D scattering_texture;
-      uniform sampler3D single_mie_scattering_texture;
-      uniform sampler2D irradiance_texture;
-      #ifdef RADIANCE_API_ENABLED
-      RadianceSpectrum GetSolarRadiance() {
-        return ATMOSPHERE.solar_irradiance /
-            (PI * ATMOSPHERE.sun_angular_radius * ATMOSPHERE.sun_angular_radius);
-      }
-      RadianceSpectrum GetSkyRadiance(
-          Position camera, Direction view_ray, Length shadow_length,
-          Direction sun_direction, out DimensionlessSpectrum transmittance) {
-        return GetSkyRadiance(ATMOSPHERE, transmittance_texture,
-            scattering_texture, single_mie_scattering_texture,
-            camera, view_ray, shadow_length, sun_direction, transmittance);
-      }
-      RadianceSpectrum GetSkyRadianceToPoint(
-          Position camera, Position point, Length shadow_length,
-          Direction sun_direction, out DimensionlessSpectrum transmittance) {
-        return GetSkyRadianceToPoint(ATMOSPHERE, transmittance_texture,
-            scattering_texture, single_mie_scattering_texture,
-            camera, point, shadow_length, sun_direction, transmittance);
-      }
-      IrradianceSpectrum GetSunAndSkyIrradiance(
-        Position p, Direction normal, Direction sun_direction,
-        out IrradianceSpectrum sky_irradiance) {
-        return GetSunAndSkyIrradiance(ATMOSPHERE, transmittance_texture,
-            irradiance_texture, p, normal, sun_direction, sky_irradiance);
-      }
-      #endif
-      Luminance3 GetSolarLuminance() {
-        return ATMOSPHERE.solar_irradiance /
-            (PI * ATMOSPHERE.sun_angular_radius * ATMOSPHERE.sun_angular_radius) *
-            SUN_SPECTRAL_RADIANCE_TO_LUMINANCE;
-      }
-      Luminance3 GetSkyLuminance(
-          Position camera, Direction view_ray, Length shadow_length,
-          Direction sun_direction, out DimensionlessSpectrum transmittance) {
-        return GetSkyRadiance(ATMOSPHERE, transmittance_texture,
-            scattering_texture, single_mie_scattering_texture,
-            camera, view_ray, shadow_length, sun_direction, transmittance) *
-            SKY_SPECTRAL_RADIANCE_TO_LUMINANCE;
-      }
-      Luminance3 GetSkyLuminanceToPoint(
-          Position camera, Position point, Length shadow_length,
-          Direction sun_direction, out DimensionlessSpectrum transmittance) {
-        return GetSkyRadianceToPoint(ATMOSPHERE, transmittance_texture,
-            scattering_texture, single_mie_scattering_texture,
-            camera, point, shadow_length, sun_direction, transmittance) *
-            SKY_SPECTRAL_RADIANCE_TO_LUMINANCE;
-      }
-      Illuminance3 GetSunAndSkyIlluminance(
-        Position p, Direction normal, Direction sun_direction,
-        out IrradianceSpectrum sky_irradiance) {
-        IrradianceSpectrum sun_irradiance = GetSunAndSkyIrradiance(
-            ATMOSPHERE, transmittance_texture, irradiance_texture, p, normal,
-            sun_direction, sky_irradiance);
-        sky_irradiance *= SKY_SPECTRAL_RADIANCE_TO_LUMINANCE;
-        return sun_irradiance * SUN_SPECTRAL_RADIANCE_TO_LUMINANCE;
-      }
+  
+  /**
+   * Texture uniforms for precomputed atmospheric scattering data
+   */
+  uniform sampler2D transmittance_texture;
+  uniform sampler3D scattering_texture;
+  uniform sampler3D single_mie_scattering_texture;
+  uniform sampler2D irradiance_texture;
+  
+  /**
+   * Retrieves solar radiance
+   */
+  #ifdef RADIANCE_API_ENABLED
+  RadianceSpectrum GetSolarRadiance() {
+    return ATMOSPHERE.solar_irradiance /
+        (PI * ATMOSPHERE.sun_angular_radius * ATMOSPHERE.sun_angular_radius);
+  }
+  
+  /**
+   * Computes sky radiance along a ray from the camera
+   */
+  RadianceSpectrum GetSkyRadiance(
+      Position camera, Direction view_ray, Length shadow_length,
+      Direction sun_direction, out DimensionlessSpectrum transmittance) {
+    return GetSkyRadiance(ATMOSPHERE, transmittance_texture,
+        scattering_texture, single_mie_scattering_texture,
+        camera, view_ray, shadow_length, sun_direction, transmittance);
+  }
+  
+  /**
+   * Computes sky radiance along a ray from the camera to a point
+   */
+  RadianceSpectrum GetSkyRadianceToPoint(
+      Position camera, Position point, Length shadow_length,
+      Direction sun_direction, out DimensionlessSpectrum transmittance) {
+    return GetSkyRadianceToPoint(ATMOSPHERE, transmittance_texture,
+        scattering_texture, single_mie_scattering_texture,
+        camera, point, shadow_length, sun_direction, transmittance);
+  }
+  
+  /**
+   * Computes sun and sky irradiance at a point
+   */
+  IrradianceSpectrum GetSunAndSkyIrradiance(
+    Position p, Direction normal, Direction sun_direction,
+    out IrradianceSpectrum sky_irradiance) {
+    return GetSunAndSkyIrradiance(ATMOSPHERE, transmittance_texture,
+        irradiance_texture, p, normal, sun_direction, sky_irradiance);
+  }
+  #endif
+  
+  /**
+   * Retrieves solar luminance
+   */
+  Luminance3 GetSolarLuminance() {
+    return ATMOSPHERE.solar_irradiance /
+        (PI * ATMOSPHERE.sun_angular_radius * ATMOSPHERE.sun_angular_radius) *
+        SUN_SPECTRAL_RADIANCE_TO_LUMINANCE;
+  }
+  
+  /**
+   * Computes sky luminance along a ray from the camera
+   */
+  Luminance3 GetSkyLuminance(
+      Position camera, Direction view_ray, Length shadow_length,
+      Direction sun_direction, out DimensionlessSpectrum transmittance) {
+    return GetSkyRadiance(ATMOSPHERE, transmittance_texture,
+        scattering_texture, single_mie_scattering_texture,
+        camera, view_ray, shadow_length, sun_direction, transmittance) *
+        SKY_SPECTRAL_RADIANCE_TO_LUMINANCE;
+  }
+  
+  /**
+   * Computes sky luminance along a ray from the camera to a point
+   */
+  Luminance3 GetSkyLuminanceToPoint(
+      Position camera, Position point, Length shadow_length,
+      Direction sun_direction, out DimensionlessSpectrum transmittance) {
+    return GetSkyRadianceToPoint(ATMOSPHERE, transmittance_texture,
+        scattering_texture, single_mie_scattering_texture,
+        camera, point, shadow_length, sun_direction, transmittance) *
+        SKY_SPECTRAL_RADIANCE_TO_LUMINANCE;
+  }
+  
+  /**
+   * Computes sun and sky illuminance at a point
+   */
+  Illuminance3 GetSunAndSkyIlluminance(
+    Position p, Direction normal, Direction sun_direction,
+    out IrradianceSpectrum sky_irradiance) {
+    IrradianceSpectrum sun_irradiance = GetSunAndSkyIrradiance(
+        ATMOSPHERE, transmittance_texture, irradiance_texture, p, normal,
+        sun_direction, sky_irradiance);
+    sky_irradiance *= SKY_SPECTRAL_RADIANCE_TO_LUMINANCE;
+    return sun_irradiance * SUN_SPECTRAL_RADIANCE_TO_LUMINANCE;
+  }
 `

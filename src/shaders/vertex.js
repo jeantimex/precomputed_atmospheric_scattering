@@ -27,13 +27,34 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+/**
+ * Vertex shader for the atmospheric scattering model
+ * 
+ * This shader is responsible for:
+ * 1. Transforming the vertices of the full-screen quad
+ * 2. Calculating view rays in world space for use in the fragment shader
+ * 3. The view rays are used to determine the direction of light travel through the atmosphere
+ */
 export const vertexShader = /* glsl */ `
+  // Transformation matrices for converting between coordinate spaces
   uniform mat4 viewMatrix;
   uniform mat4 projectionMatrix;
+  
+  // Position attribute of the vertex (full-screen quad vertices)
   layout(location = 0) in vec4 position;
+  
+  // Output view ray direction in world space to be used by the fragment shader
   out vec3 view_ray;
+  
   void main() {
+    // Calculate the view ray by:
+    // 1. Transforming the position to clip space using the inverse projection matrix
+    // 2. Converting to view space
+    // 3. Converting to world space using the inverse view matrix
+    // 4. Setting w=0 to represent a direction vector rather than a position
     view_ray = (inverse(viewMatrix) * vec4((inverse(projectionMatrix) * position).xyz, 0.0)).xyz;
+    
+    // Output the vertex position unchanged (for the full-screen quad)
     gl_Position = position;
   }
 `

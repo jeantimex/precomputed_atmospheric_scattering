@@ -4,6 +4,8 @@ A Three.js implementation of Eric Bruneton's [Precomputed Atmospheric Scattering
 
 ![Atmospheric Scattering Demo](./screenshot.png)
 
+**[Live Demo](https://jeantimex.github.io/precomputed_atmospheric_scattering/)**
+
 ## Overview
 
 This project is a port of Eric Bruneton's physically-based atmospheric scattering model to Three.js. The original implementation uses WebGL directly, while this version integrates the same atmospheric rendering techniques with the Three.js framework, making it easier to incorporate realistic atmospheric effects into Three.js applications.

@@ -1,6 +1,8 @@
+<!DOCTYPE html>
 <html>
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Precomputed Atmospheric Scattering - WebGL Demo</title>
     <style>
       html,
@@ -23,6 +25,8 @@
         width: 100%;
         height: 100%;
         z-index: 1;
+        touch-action: none; /* Prevent browser handling of touch events */
+        display: block; /* Ensure canvas is a block element */
       }
       #help {
         position: absolute;
@@ -43,11 +47,18 @@
       li {
         list-style: none;
       }
+      
+      /* Media query for smaller screens */
+      @media (max-width: 768px) {
+        #help {
+          font-size: 0.9em;
+        }
+      }
     </style>
-    <script type="module" crossorigin src="/precomputed_atmospheric_scattering/assets/main-CyFVxgEN.js"></script>
+    <script type="module" crossorigin src="/precomputed_atmospheric_scattering/assets/main-DnW7z1td.js"></script>
   </head>
   <body>
-    <canvas id="glcanvas" width="400" height="300"></canvas>
+    <canvas id="glcanvas"></canvas>
     <ul id="help">
       <li>
         <a href="https://ebruneton.github.io/precomputed_atmospheric_scattering/index.html">

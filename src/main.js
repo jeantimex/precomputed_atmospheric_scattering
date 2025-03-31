@@ -1,6 +1,7 @@
 // three.js port of https://ebruneton.github.io/precomputed_atmospheric_scattering
 // See shaders.js for license
 import * as THREE from 'three'
+import { GUI } from 'lil-gui';
 import { vertexShader } from './shaders/vertex'
 import { fragmentShader } from './shaders/fragment'
 
@@ -33,6 +34,7 @@ export class Demo {
     this.camera = null;
     this.scene = null;
     this.material = null;
+    this.gui = null;
 
     // Initial sun position (in spherical coordinates)
     this.sunZenithAngleRadians = 1.3;   // Angle from zenith (0 = directly overhead)
@@ -54,6 +56,9 @@ export class Demo {
     
     // Set default view (same as key 1)
     this.setView(9000, 1.47, 0, 1.3, 3, 10);
+    
+    // Set up GUI controls after material is created
+    this.setupGUI();
     
     this.startAnimationLoop();
   }
@@ -284,6 +289,39 @@ export class Demo {
     // Add keyboard event listener for preset views
     window.addEventListener('keypress', this.onKeyPress.bind(this));
     // No need to add pointer events here as they're now in setupControls
+  }
+
+  /**
+   * Set up GUI controls for adjusting parameters
+   */
+  setupGUI() {
+    // Create GUI instance
+    this.gui = new GUI({ title: 'Controls' });
+    
+    // Add exposure control
+    const exposureFolder = this.gui.addFolder('Exposure');
+    
+    // Get the current exposure value from the material
+    const exposureController = exposureFolder.add(
+      this.material.uniforms.exposure, 
+      'value', 
+      0.1, 
+      20.0
+    ).name('Brightness');
+    
+    // Add event listener for exposure changes
+    exposureController.onChange((value) => {
+      // Update the exposure value in the shader
+      this.material.uniforms.exposure.value = value;
+    });
+    
+    // Position the GUI in the top-right corner
+    this.gui.domElement.style.position = 'absolute';
+    this.gui.domElement.style.top = '10px';
+    this.gui.domElement.style.right = '10px';
+    
+    // Start with the GUI closed to save screen space
+    exposureFolder.close();
   }
 
   /**
@@ -623,9 +661,25 @@ export class Demo {
     } else if (key == '+') {
       // Increase exposure
       this.material.uniforms.exposure.value *= 1.1;
+      // Update GUI controller if it exists
+      if (this.gui) {
+        this.gui.controllers.forEach(controller => {
+          if (controller.property === 'value') {
+            controller.updateDisplay();
+          }
+        });
+      }
     } else if (key == '-') {
       // Decrease exposure
       this.material.uniforms.exposure.value /= 1.1;
+      // Update GUI controller if it exists
+      if (this.gui) {
+        this.gui.controllers.forEach(controller => {
+          if (controller.property === 'value') {
+            controller.updateDisplay();
+          }
+        });
+      }
     } else if (key == '1') {
       // Preset view 1: Daytime
       this.setView(9000, 1.47, 0, 1.3, 3, 10);

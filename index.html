@@ -12,12 +12,30 @@
         margin: 0;
         overflow: hidden;
       }
+      body {
+        margin: 0;
+        overflow: hidden;
+        font-family: sans-serif;
+        font-size: 0.8em;
+      }
+      #glcanvas {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        z-index: 1;
+      }
       #help {
         position: absolute;
-        top: 0;
-        left: 0;
-        color: red;
-        font-family: monospace;
+        top: 10px;
+        left: 10px;
+        color: white;
+        z-index: 2;
+        pointer-events: none; /* Make the help text not receive pointer events */
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8); /* Add text shadow for better readability */
+      }
+      a {
+        color: #8cf;
+        pointer-events: auto; /* Allow links to receive pointer events */
       }
       ul {
         padding-left: 1em;
@@ -26,7 +44,7 @@
         list-style: none;
       }
     </style>
-    <script type="module" crossorigin src="/precomputed_atmospheric_scattering/assets/main-BjjyuNfs.js"></script>
+    <script type="module" crossorigin src="/precomputed_atmospheric_scattering/assets/main-CyFVxgEN.js"></script>
   </head>
   <body>
     <canvas id="glcanvas" width="400" height="300"></canvas>
@@ -43,6 +61,7 @@
           <li>drag: move camera view</li>
           <li>drag sun directly: move sun position</li>
           <li>wheel or pinch: zoom in/out</li>
+          <li>two-finger swipe: adjust camera tilt</li>
         </ul>
       </li>
       <li>

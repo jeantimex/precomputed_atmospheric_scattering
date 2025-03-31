@@ -1,7 +1,8 @@
 // three.js port of https://ebruneton.github.io/precomputed_atmospheric_scattering
 // See shaders.js for license
 import * as THREE from 'three'
-import { vertexShader, fragmentShader } from './shaders'
+import { vertexShader } from './shaders/vertex'
+import { fragmentShader } from './shaders/fragment'
 
 /**
  * Constants for atmospheric scattering textures

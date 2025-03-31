@@ -1,6 +1,7 @@
 <html>
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Precomputed Atmospheric Scattering - WebGL Demo</title>
     <style>
       html,
@@ -20,9 +21,11 @@
       }
       #glcanvas {
         position: absolute;
-        width: 100%;
-        height: 100%;
+        width: 100vw;
+        height: 100vh;
         z-index: 1;
+        display: block;
+        touch-action: none;
       }
       #help {
         position: absolute;
@@ -51,7 +54,7 @@
     <script type="module" crossorigin src="/precomputed_atmospheric_scattering/assets/main-BOc_srNg.js"></script>
   </head>
   <body>
-    <canvas id="glcanvas" width="400" height="300"></canvas>
+    <canvas id="glcanvas"></canvas>
     <ul id="help">
       <li>&nbsp;</li>
       <li>

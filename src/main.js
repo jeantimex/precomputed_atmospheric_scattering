@@ -3,6 +3,7 @@
 import * as THREE from 'three'
 import { vertexShader } from './shaders/vertex'
 import { fragmentShader } from './shaders/fragment'
+import { KeyboardControlsManager } from './KeyboardControlsManager'
 
 /**
  * Constants for atmospheric scattering textures
@@ -51,6 +52,9 @@ export class Demo {
     await this.loadTextures();
     this.setupScene();
     this.setupEventListeners();
+    
+    // Initialize keyboard controls manager
+    this.keyboardControls = new KeyboardControlsManager(this);
     
     // Set default view (same as key 1)
     this.setView(9000, 1.47, 0, 1.3, 3, 10);
@@ -322,8 +326,7 @@ export class Demo {
     // Add orientation change listener for mobile devices
     window.addEventListener('orientationchange', this.onWindowResize.bind(this));
     
-    // Add keyboard event listener for preset views
-    window.addEventListener('keypress', this.onKeyPress.bind(this));
+    // Keyboard events are now handled by KeyboardControlsManager
     // No need to add pointer events here as they're now in setupControls
   }
 
@@ -656,55 +659,6 @@ export class Demo {
     
     // Update exposure
     this.material.uniforms.exposure.value = exposure;
-  }
-
-  /**
-   * Handle keyboard events for preset views and controls
-   * @param {KeyboardEvent} event - The keyboard event
-   */
-  onKeyPress(event) {
-    const key = event.key;
-    if (key == 'h') {
-      // Toggle help display if implemented
-      const helpElement = document.getElementById('help');
-      if (helpElement) {
-        const hidden = helpElement.style.display == 'none';
-        helpElement.style.display = hidden ? 'block' : 'none';
-      }
-    } else if (key == '+') {
-      // Increase exposure
-      this.material.uniforms.exposure.value *= 1.1;
-    } else if (key == '-') {
-      // Decrease exposure
-      this.material.uniforms.exposure.value /= 1.1;
-    } else if (key == '1') {
-      // Preset view 1: Daytime
-      this.setView(9000, 1.47, 0, 1.3, 3, 10);
-    } else if (key == '2') {
-      // Preset view 2: Sunset
-      this.setView(9000, 1.47, 0, 1.564, -3, 10);
-    } else if (key == '3') {
-      // Preset view 3: Sunset with mountains
-      this.setView(7000, 1.57, 0, 1.54, -2.96, 10);
-    } else if (key == '4') {
-      // Preset view 4: Sunset with mountains (different angle)
-      this.setView(7000, 1.57, 0, 1.328, -3.044, 10);
-    } else if (key == '5') {
-      // Preset view 5: Morning
-      this.setView(9000, 1.39, 0, 1.2, 0.7, 10);
-    } else if (key == '6') {
-      // Preset view 6: Night
-      this.setView(9000, 1.5, 0, 1.628, 1.05, 200);
-    } else if (key == '7') {
-      // Preset view 7: Night with mountains
-      this.setView(7000, 1.43, 0, 1.57, 1.34, 40);
-    } else if (key == '8') {
-      // Preset view 8: High altitude
-      this.setView(2.7e6, 0.81, 0, 1.57, 2, 10);
-    } else if (key == '9') {
-      // Preset view 9: Space view
-      this.setView(1.2e7, 0.0, 0, 0.93, -2, 10);
-    }
   }
 
   /**

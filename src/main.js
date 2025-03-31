@@ -93,22 +93,32 @@ export class Demo {
 
   /**
    * Set up custom camera controls for navigation
-   * Implements mouse-based camera movement similar to the original demo
+   * Implements pointer-based camera movement for both mouse and touch devices
    */
   setupControls() {
     // Disable the default OrbitControls
     // this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     
-    // Add event listeners for our custom camera control
-    this.renderer.domElement.addEventListener('mousedown', this.onMouseDown.bind(this));
-    this.renderer.domElement.addEventListener('mousemove', this.onMouseMove.bind(this));
-    this.renderer.domElement.addEventListener('mouseup', this.onMouseUp.bind(this));
-    this.renderer.domElement.addEventListener('wheel', this.onMouseWheel.bind(this));
+    // Add event listeners for our custom camera control using pointer events
+    this.renderer.domElement.addEventListener('pointerdown', this.onPointerDown.bind(this));
+    this.renderer.domElement.addEventListener('pointermove', this.onPointerMove.bind(this));
+    this.renderer.domElement.addEventListener('pointerup', this.onPointerUp.bind(this));
+    this.renderer.domElement.addEventListener('pointercancel', this.onPointerUp.bind(this));
+    this.renderer.domElement.addEventListener('wheel', this.onWheel.bind(this));
+    
+    // For pinch-to-zoom on touch devices
+    this.renderer.domElement.addEventListener('touchstart', this.onTouchStart.bind(this), { passive: false });
+    this.renderer.domElement.addEventListener('touchmove', this.onTouchMove.bind(this), { passive: false });
+    this.renderer.domElement.addEventListener('touchend', this.onTouchEnd.bind(this), { passive: false });
     
     // Store initial values for camera control
     this.drag = undefined;
-    this.previousMouseX = 0;
-    this.previousMouseY = 0;
+    this.previousPointerX = 0;
+    this.previousPointerY = 0;
+    
+    // For pinch-to-zoom
+    this.previousTouchDistance = 0;
+    this.activeTouches = [];
     
     // Initial camera angles (similar to the original implementation)
     this.viewZenithAngleRadians = 1.47;    // Angle from zenith
@@ -270,42 +280,45 @@ export class Demo {
     window.addEventListener('resize', this.onWindowResize.bind(this));
     // Add keyboard event listener for preset views
     window.addEventListener('keypress', this.onKeyPress.bind(this));
-    // No need to add mouse events here as they're now in setupControls
+    // No need to add pointer events here as they're now in setupControls
   }
 
   /**
-   * Handle mouse down event for camera and sun control
-   * @param {MouseEvent} event - The mouse event
+   * Handle pointer down event for camera and sun control
+   * @param {PointerEvent} event - The pointer event
    */
-  onMouseDown(event) {
-    this.previousMouseX = event.offsetX;
-    this.previousMouseY = event.offsetY;
+  onPointerDown(event) {
+    this.previousPointerX = event.offsetX;
+    this.previousPointerY = event.offsetY;
     
-    // If ctrl key is pressed, enable sun movement
-    if (event.ctrlKey) {
+    // If ctrl key is pressed or right button is clicked, enable sun movement
+    if (event.ctrlKey || event.button === 2) {
       this.drag = 'sun';
     } else {
       this.drag = 'camera';
     }
+    
+    // Capture pointer to ensure we get events even if the pointer moves outside the canvas
+    this.renderer.domElement.setPointerCapture(event.pointerId);
   }
   
   /**
-   * Handle mouse move event for camera and sun control
-   * Updates camera or sun position based on mouse movement
-   * @param {MouseEvent} event - The mouse event
+   * Handle pointer move event for camera and sun control
+   * Updates camera or sun position based on pointer movement
+   * @param {PointerEvent} event - The pointer event
    */
-  onMouseMove(event) {
+  onPointerMove(event) {
     if (!this.drag) return;
     
     const kScale = 500;
-    const mouseX = event.offsetX;
-    const mouseY = event.offsetY;
+    const pointerX = event.offsetX;
+    const pointerY = event.offsetY;
     
     if (this.drag === 'sun') {
       // Update sun position
-      this.sunZenithAngleRadians -= (this.previousMouseY - mouseY) / kScale;
+      this.sunZenithAngleRadians -= (this.previousPointerY - pointerY) / kScale;
       this.sunZenithAngleRadians = Math.max(0, Math.min(Math.PI, this.sunZenithAngleRadians));
-      this.sunAzimuthAngleRadians += (this.previousMouseX - mouseX) / kScale;
+      this.sunAzimuthAngleRadians += (this.previousPointerX - pointerX) / kScale;
       
       // Update sun direction in the shader
       const sunDirection = new THREE.Vector3(
@@ -316,9 +329,9 @@ export class Demo {
       this.material.uniforms.sun_direction.value = sunDirection;
     } else if (this.drag === 'camera') {
       // Update camera position
-      this.viewZenithAngleRadians += (this.previousMouseY - mouseY) / kScale;
+      this.viewZenithAngleRadians += (this.previousPointerY - pointerY) / kScale;
       this.viewZenithAngleRadians = Math.max(0, Math.min(Math.PI / 2, this.viewZenithAngleRadians));
-      this.viewAzimuthAngleRadians += (this.previousMouseX - mouseX) / kScale;
+      this.viewAzimuthAngleRadians += (this.previousPointerX - pointerX) / kScale;
       
       // Update camera position based on spherical coordinates
       const distance = this.viewDistanceMeters / kLengthUnitInMeters;
@@ -330,27 +343,102 @@ export class Demo {
       this.camera.lookAt(0, 0, 0);
     }
     
-    this.previousMouseX = mouseX;
-    this.previousMouseY = mouseY;
+    this.previousPointerX = pointerX;
+    this.previousPointerY = pointerY;
   }
   
   /**
-   * Handle mouse up event to end dragging operations
-   * @param {MouseEvent} event - The mouse event
+   * Handle pointer up event to end dragging operations
+   * @param {PointerEvent} event - The pointer event
    */
-  onMouseUp(event) {
+  onPointerUp(event) {
     this.drag = undefined;
+    // Release pointer capture
+    this.renderer.domElement.releasePointerCapture(event.pointerId);
   }
   
   /**
-   * Handle mouse wheel event for camera zoom
+   * Handle wheel event for camera zoom
    * @param {WheelEvent} event - The wheel event
    */
-  onMouseWheel(event) {
+  onWheel(event) {
     // Zoom in/out
     this.viewDistanceMeters *= event.deltaY > 0 ? 1.05 : 1 / 1.05;
+    this.updateCameraPosition();
     
-    // Update camera position
+    // Prevent default scroll behavior
+    event.preventDefault();
+  }
+  
+  /**
+   * Handle touch start event for multi-touch gestures
+   * @param {TouchEvent} event - The touch event
+   */
+  onTouchStart(event) {
+    // Store touch points for pinch-to-zoom
+    this.activeTouches = Array.from(event.touches);
+    
+    if (this.activeTouches.length === 2) {
+      // Calculate initial distance between two touch points for pinch-to-zoom
+      const touch1 = this.activeTouches[0];
+      const touch2 = this.activeTouches[1];
+      this.previousTouchDistance = Math.hypot(
+        touch2.clientX - touch1.clientX,
+        touch2.clientY - touch1.clientY
+      );
+    }
+    
+    // Prevent default to avoid page scrolling
+    event.preventDefault();
+  }
+  
+  /**
+   * Handle touch move event for multi-touch gestures
+   * @param {TouchEvent} event - The touch event
+   */
+  onTouchMove(event) {
+    // Handle pinch-to-zoom with two fingers
+    if (event.touches.length === 2) {
+      const touch1 = event.touches[0];
+      const touch2 = event.touches[1];
+      const currentDistance = Math.hypot(
+        touch2.clientX - touch1.clientX,
+        touch2.clientY - touch1.clientY
+      );
+      
+      if (this.previousTouchDistance > 0) {
+        // Calculate zoom factor based on the change in distance
+        const zoomFactor = currentDistance / this.previousTouchDistance;
+        
+        // Apply zoom (pinch in = zoom out, pinch out = zoom in)
+        this.viewDistanceMeters /= zoomFactor;
+        this.updateCameraPosition();
+      }
+      
+      this.previousTouchDistance = currentDistance;
+    }
+    
+    // Prevent default to avoid page scrolling
+    event.preventDefault();
+  }
+  
+  /**
+   * Handle touch end event
+   * @param {TouchEvent} event - The touch event
+   */
+  onTouchEnd(event) {
+    this.activeTouches = Array.from(event.touches);
+    this.previousTouchDistance = 0;
+    
+    // Prevent default behavior
+    event.preventDefault();
+  }
+  
+  /**
+   * Update camera position based on current view parameters
+   * Extracted as a separate method to avoid code duplication
+   */
+  updateCameraPosition() {
     const distance = this.viewDistanceMeters / kLengthUnitInMeters;
     const x = distance * Math.sin(this.viewZenithAngleRadians) * Math.cos(this.viewAzimuthAngleRadians);
     const y = distance * Math.sin(this.viewZenithAngleRadians) * Math.sin(this.viewAzimuthAngleRadians);
@@ -358,9 +446,6 @@ export class Demo {
     
     this.camera.position.set(x, y, z);
     this.camera.lookAt(0, 0, 0);
-    
-    // Prevent default scroll behavior
-    event.preventDefault();
   }
 
   /**

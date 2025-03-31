@@ -288,18 +288,34 @@ export class Demo {
    * @param {PointerEvent} event - The pointer event
    */
   onPointerDown(event) {
-    this.previousPointerX = event.offsetX;
-    this.previousPointerY = event.offsetY;
+    // Prevent default behavior to avoid unwanted scrolling or zooming
+    event.preventDefault();
     
-    // If ctrl key is pressed or right button is clicked, enable sun movement
-    if (event.ctrlKey || event.button === 2) {
+    // Store the pointer position
+    if (event.touches && event.touches.length > 0) {
+      // Touch event
+      const rect = this.renderer.domElement.getBoundingClientRect();
+      this.previousPointerX = event.touches[0].clientX - rect.left;
+      this.previousPointerY = event.touches[0].clientY - rect.top;
+    } else {
+      // Mouse or pointer event
+      this.previousPointerX = event.offsetX;
+      this.previousPointerY = event.offsetY;
+    }
+    
+    // Check if the pointer is over the sun
+    if (this.isPointerOverSun(event)) {
       this.drag = 'sun';
+      this.renderer.domElement.style.cursor = 'grabbing';
     } else {
       this.drag = 'camera';
+      this.renderer.domElement.style.cursor = 'grabbing';
     }
     
     // Capture pointer to ensure we get events even if the pointer moves outside the canvas
-    this.renderer.domElement.setPointerCapture(event.pointerId);
+    if (event.pointerId !== undefined) {
+      this.renderer.domElement.setPointerCapture(event.pointerId);
+    }
   }
   
   /**
@@ -308,11 +324,32 @@ export class Demo {
    * @param {PointerEvent} event - The pointer event
    */
   onPointerMove(event) {
+    // Prevent default behavior to avoid unwanted scrolling
+    event.preventDefault();
+    
+    // Update cursor when hovering over the sun (only for non-touch)
+    if (!this.drag && event.pointerType !== 'touch' && this.isPointerOverSun(event)) {
+      this.renderer.domElement.style.cursor = 'grab';
+    } else if (!this.drag && event.pointerType !== 'touch') {
+      this.renderer.domElement.style.cursor = 'auto';
+    }
+    
     if (!this.drag) return;
     
     const kScale = 500;
-    const pointerX = event.offsetX;
-    const pointerY = event.offsetY;
+    let pointerX, pointerY;
+    
+    // Get the correct coordinates regardless of event type
+    if (event.touches && event.touches.length > 0) {
+      // Touch event
+      const rect = this.renderer.domElement.getBoundingClientRect();
+      pointerX = event.touches[0].clientX - rect.left;
+      pointerY = event.touches[0].clientY - rect.top;
+    } else {
+      // Mouse or pointer event
+      pointerX = event.offsetX;
+      pointerY = event.offsetY;
+    }
     
     if (this.drag === 'sun') {
       // Update sun position
@@ -334,13 +371,7 @@ export class Demo {
       this.viewAzimuthAngleRadians += (this.previousPointerX - pointerX) / kScale;
       
       // Update camera position based on spherical coordinates
-      const distance = this.viewDistanceMeters / kLengthUnitInMeters;
-      const x = distance * Math.sin(this.viewZenithAngleRadians) * Math.cos(this.viewAzimuthAngleRadians);
-      const y = distance * Math.sin(this.viewZenithAngleRadians) * Math.sin(this.viewAzimuthAngleRadians);
-      const z = distance * Math.cos(this.viewZenithAngleRadians);
-      
-      this.camera.position.set(x, y, z);
-      this.camera.lookAt(0, 0, 0);
+      this.updateCameraPosition();
     }
     
     this.previousPointerX = pointerX;
@@ -352,9 +383,20 @@ export class Demo {
    * @param {PointerEvent} event - The pointer event
    */
   onPointerUp(event) {
+    // Prevent default behavior
+    event.preventDefault();
+    
     this.drag = undefined;
+    
+    // Reset cursor (only for non-touch)
+    if (event.pointerType !== 'touch') {
+      this.renderer.domElement.style.cursor = 'auto';
+    }
+    
     // Release pointer capture
-    this.renderer.domElement.releasePointerCapture(event.pointerId);
+    if (event.pointerId !== undefined) {
+      this.renderer.domElement.releasePointerCapture(event.pointerId);
+    }
   }
   
   /**
@@ -561,5 +603,56 @@ export class Demo {
       // Preset view 9: Space view
       this.setView(1.2e7, 0.0, 0, 0.93, -2, 10);
     }
+  }
+
+  /**
+   * Check if the pointer is over the sun
+   * @param {PointerEvent} event - The pointer event
+   * @returns {boolean} - True if the pointer is over the sun
+   */
+  isPointerOverSun(event) {
+    // Get canvas dimensions
+    const canvas = this.renderer.domElement;
+    const width = canvas.clientWidth;
+    const height = canvas.clientHeight;
+    
+    // Get the correct coordinates regardless of event type
+    let clientX, clientY;
+    
+    // Handle both touch and mouse events
+    if (event.touches && event.touches.length > 0) {
+      // Touch event
+      const rect = canvas.getBoundingClientRect();
+      clientX = event.touches[0].clientX - rect.left;
+      clientY = event.touches[0].clientY - rect.top;
+    } else {
+      // Mouse or pointer event
+      clientX = event.offsetX;
+      clientY = event.offsetY;
+    }
+    
+    // Normalize coordinates to [-1, 1]
+    const normalizedX = (clientX / width) * 2 - 1;
+    const normalizedY = -(clientY / height) * 2 + 1;
+    
+    // Create a ray from the camera through the pointer position
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(new THREE.Vector2(normalizedX, normalizedY), this.camera);
+    
+    // Get the sun direction in world space
+    const sunDirection = this.material.uniforms.sun_direction.value.clone();
+    
+    // Calculate the angle between the ray and the sun direction
+    const rayDirection = raycaster.ray.direction;
+    const angleBetween = rayDirection.angleTo(sunDirection);
+    
+    // Get the sun angular radius (in radians)
+    const sunAngularRadius = Math.atan(this.material.uniforms.sun_size.value.x);
+    
+    // Add a larger tolerance for touch devices for easier selection
+    const selectionTolerance = event.pointerType === 'touch' ? 2.5 : 1.5;
+    
+    // Check if the angle is less than the sun's angular radius (plus tolerance)
+    return angleBetween < sunAngularRadius * selectionTolerance;
   }
 }

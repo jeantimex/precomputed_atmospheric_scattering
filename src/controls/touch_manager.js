@@ -73,9 +73,9 @@ export class TouchManager {
       this.previousTouchY = (touch1.clientY + touch2.clientY) / 2;
 
       // Cancel any existing drag operation when two fingers are used
-      // Use the PointControlsManager's resetDrag method instead of directly modifying demo.drag
-      if (this.demo.pointControls) {
-        this.demo.pointControls.resetDrag();
+      // Use the PointerManager's resetDrag method instead of directly modifying demo.drag
+      if (this.demo.pointerManager) {
+        this.demo.pointerManager.resetDrag();
       }
     }
   }
@@ -137,16 +137,18 @@ export class TouchManager {
         this.previousTouchDistance = currentDistance;
       } else if (this.twoFingerMode === "swipe") {
         // Two-finger vertical swipe behavior - adjust camera tilt (zenith angle)
-        const kTiltScale = 0.005;
+        // Increase the sensitivity for two-finger swipe to match one-finger behavior
+        const kTiltScale = 0.015; // Increased from 0.005 to make it more responsive
         const deltaTilt = (currentTouchY - this.previousTouchY) * kTiltScale;
 
         // Update camera tilt (zenith angle)
         this.demo.viewZenithAngleRadians -= deltaTilt;
 
         // Clamp the zenith angle to prevent flipping or looking too far down
+        // Expanded the range slightly to allow more movement
         this.demo.viewZenithAngleRadians = Math.max(
-          0.1,
-          Math.min(Math.PI / 2 - 0.1, this.demo.viewZenithAngleRadians)
+          0.05,
+          Math.min(Math.PI / 2 - 0.05, this.demo.viewZenithAngleRadians)
         );
 
         // Update camera position

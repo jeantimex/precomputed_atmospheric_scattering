@@ -61,7 +61,10 @@ export class TouchControlsManager {
       this.previousTouchY = (touch1.clientY + touch2.clientY) / 2;
       
       // Cancel any existing drag operation when two fingers are used
-      this.demo.drag = undefined;
+      // Use the PointControlsManager's resetDrag method instead of directly modifying demo.drag
+      if (this.demo.pointControls) {
+        this.demo.pointControls.resetDrag();
+      }
     }
   }
   

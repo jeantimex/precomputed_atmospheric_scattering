@@ -5,6 +5,7 @@ import { vertexShader } from './shaders/vertex'
 import { fragmentShader } from './shaders/fragment'
 import { KeyboardControlsManager } from './KeyboardControlsManager'
 import { TouchControlsManager } from './TouchControlsManager'
+import { PointControlsManager } from './PointControlsManager'
 
 /**
  * Constants for atmospheric scattering textures
@@ -59,6 +60,9 @@ export class Demo {
     
     // Initialize touch controls manager
     this.touchControls = new TouchControlsManager(this);
+    
+    // Initialize pointer controls manager
+    this.pointControls = new PointControlsManager(this);
     
     // Set default view (same as key 1)
     this.setView(9000, 1.47, 0, 1.3, 3, 10);
@@ -138,16 +142,12 @@ export class Demo {
     // this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     
     // Add event listeners for our custom camera control using pointer events
-    this.renderer.domElement.addEventListener('pointerdown', this.onPointerDown.bind(this));
-    this.renderer.domElement.addEventListener('pointermove', this.onPointerMove.bind(this));
-    this.renderer.domElement.addEventListener('pointerup', this.onPointerUp.bind(this));
-    this.renderer.domElement.addEventListener('pointercancel', this.onPointerUp.bind(this));
-    this.renderer.domElement.addEventListener('wheel', this.onWheel.bind(this));
+    // Pointer events are now handled by PointControlsManager
     
     // Touch events are now handled by TouchControlsManager
     
     // Store initial values for camera control
-    this.drag = undefined;
+    // Note: drag state is now managed by PointControlsManager
     this.previousPointerX = 0;
     this.previousPointerY = 0;
     
@@ -329,7 +329,7 @@ export class Demo {
     window.addEventListener('orientationchange', this.onWindowResize.bind(this));
     
     // Keyboard events are now handled by KeyboardControlsManager
-    // No need to add pointer events here as they're now in setupControls
+    // Pointer events are now handled by PointControlsManager
   }
 
   /**
@@ -354,135 +354,6 @@ export class Demo {
     this.updateRendererSize();
   }
 
-  /**
-   * Handle pointer down event for camera and sun control
-   * @param {PointerEvent} event - The pointer event
-   */
-  onPointerDown(event) {
-    // Prevent default behavior to avoid unwanted scrolling or zooming
-    event.preventDefault();
-    
-    // Store the pointer position
-    if (event.touches && event.touches.length > 0) {
-      // Touch event
-      const rect = this.renderer.domElement.getBoundingClientRect();
-      this.previousPointerX = event.touches[0].clientX - rect.left;
-      this.previousPointerY = event.touches[0].clientY - rect.top;
-    } else {
-      // Mouse or pointer event
-      this.previousPointerX = event.offsetX;
-      this.previousPointerY = event.offsetY;
-    }
-    
-    // Check if the pointer is over the sun
-    if (this.isPointerOverSun(event)) {
-      this.drag = 'sun';
-      this.renderer.domElement.style.cursor = 'grabbing';
-    } else {
-      this.drag = 'camera';
-      this.renderer.domElement.style.cursor = 'grabbing';
-    }
-    
-    // Capture pointer to ensure we get events even if the pointer moves outside the canvas
-    if (event.pointerId !== undefined) {
-      this.renderer.domElement.setPointerCapture(event.pointerId);
-    }
-  }
-  
-  /**
-   * Handle pointer move event for camera and sun control
-   * Updates camera or sun position based on pointer movement
-   * @param {PointerEvent} event - The pointer event
-   */
-  onPointerMove(event) {
-    // Prevent default behavior to avoid unwanted scrolling
-    event.preventDefault();
-    
-    // Update cursor when hovering over the sun (only for non-touch)
-    if (!this.drag && event.pointerType !== 'touch' && this.isPointerOverSun(event)) {
-      this.renderer.domElement.style.cursor = 'grab';
-    } else if (!this.drag && event.pointerType !== 'touch') {
-      this.renderer.domElement.style.cursor = 'auto';
-    }
-    
-    if (!this.drag) return;
-    
-    const kScale = 500;
-    let pointerX, pointerY;
-    
-    // Get the correct coordinates regardless of event type
-    if (event.touches && event.touches.length > 0) {
-      // Touch event
-      const rect = this.renderer.domElement.getBoundingClientRect();
-      pointerX = event.touches[0].clientX - rect.left;
-      pointerY = event.touches[0].clientY - rect.top;
-    } else {
-      // Mouse or pointer event
-      pointerX = event.offsetX;
-      pointerY = event.offsetY;
-    }
-    
-    if (this.drag === 'sun') {
-      // Update sun position
-      this.sunZenithAngleRadians -= (this.previousPointerY - pointerY) / kScale;
-      this.sunZenithAngleRadians = Math.max(0, Math.min(Math.PI, this.sunZenithAngleRadians));
-      this.sunAzimuthAngleRadians += (this.previousPointerX - pointerX) / kScale;
-      
-      // Update sun direction in the shader
-      const sunDirection = new THREE.Vector3(
-        Math.sin(this.sunZenithAngleRadians) * Math.cos(this.sunAzimuthAngleRadians),
-        Math.sin(this.sunZenithAngleRadians) * Math.sin(this.sunAzimuthAngleRadians),
-        Math.cos(this.sunZenithAngleRadians)
-      );
-      this.material.uniforms.sun_direction.value = sunDirection;
-    } else if (this.drag === 'camera') {
-      // Update camera position
-      this.viewZenithAngleRadians += (this.previousPointerY - pointerY) / kScale;
-      this.viewZenithAngleRadians = Math.max(0, Math.min(Math.PI / 2, this.viewZenithAngleRadians));
-      this.viewAzimuthAngleRadians += (this.previousPointerX - pointerX) / kScale;
-      
-      // Update camera position based on spherical coordinates
-      this.updateCameraPosition();
-    }
-    
-    this.previousPointerX = pointerX;
-    this.previousPointerY = pointerY;
-  }
-  
-  /**
-   * Handle pointer up event to end dragging operations
-   * @param {PointerEvent} event - The pointer event
-   */
-  onPointerUp(event) {
-    // Prevent default behavior
-    event.preventDefault();
-    
-    this.drag = undefined;
-    
-    // Reset cursor (only for non-touch)
-    if (event.pointerType !== 'touch') {
-      this.renderer.domElement.style.cursor = 'auto';
-    }
-    
-    // Release pointer capture
-    if (event.pointerId !== undefined) {
-      this.renderer.domElement.releasePointerCapture(event.pointerId);
-    }
-  }
-  
-  /**
-   * Handle wheel event for camera zoom
-   * @param {WheelEvent} event - The wheel event
-   */
-  onWheel(event) {
-    // Zoom in/out
-    this.viewDistanceMeters *= event.deltaY > 0 ? 1.05 : 1 / 1.05;
-    this.updateCameraPosition();
-    
-    // Prevent default scroll behavior
-    event.preventDefault();
-  }
-  
   /**
    * Update camera position based on current view parameters
    * Extracted as a separate method to avoid code duplication
@@ -549,56 +420,5 @@ export class Demo {
     
     // Update exposure
     this.material.uniforms.exposure.value = exposure;
-  }
-
-  /**
-   * Check if the pointer is over the sun
-   * @param {PointerEvent} event - The pointer event
-   * @returns {boolean} - True if the pointer is over the sun
-   */
-  isPointerOverSun(event) {
-    // Get canvas dimensions
-    const canvas = this.renderer.domElement;
-    const width = canvas.clientWidth;
-    const height = canvas.clientHeight;
-    
-    // Get the correct coordinates regardless of event type
-    let clientX, clientY;
-    
-    // Handle both touch and mouse events
-    if (event.touches && event.touches.length > 0) {
-      // Touch event
-      const rect = canvas.getBoundingClientRect();
-      clientX = event.touches[0].clientX - rect.left;
-      clientY = event.touches[0].clientY - rect.top;
-    } else {
-      // Mouse or pointer event
-      clientX = event.offsetX;
-      clientY = event.offsetY;
-    }
-    
-    // Normalize coordinates to [-1, 1]
-    const normalizedX = (clientX / width) * 2 - 1;
-    const normalizedY = -(clientY / height) * 2 + 1;
-    
-    // Create a ray from the camera through the pointer position
-    const raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(new THREE.Vector2(normalizedX, normalizedY), this.camera);
-    
-    // Get the sun direction in world space
-    const sunDirection = this.material.uniforms.sun_direction.value.clone();
-    
-    // Calculate the angle between the ray and the sun direction
-    const rayDirection = raycaster.ray.direction;
-    const angleBetween = rayDirection.angleTo(sunDirection);
-    
-    // Get the sun angular radius (in radians)
-    const sunAngularRadius = Math.atan(this.material.uniforms.sun_size.value.x);
-    
-    // Add a larger tolerance for touch devices for easier selection
-    const selectionTolerance = event.pointerType === 'touch' ? 2.5 : 1.5;
-    
-    // Check if the angle is less than the sun's angular radius (plus tolerance)
-    return angleBetween < sunAngularRadius * selectionTolerance;
   }
 }

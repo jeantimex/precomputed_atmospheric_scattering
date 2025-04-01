@@ -1,18 +1,19 @@
 import * as THREE from "three";
+import { Atmosphere } from "../atmosphere";
 
 /**
  * PointerManager class for handling pointer events
- * Provides methods for handling mouse and pointer interactions and updating the demo accordingly
+ * Provides methods for handling mouse and pointer interactions and updating the atmosphere accordingly
  * Handles camera movement and sun position control
  */
 export class PointerManager {
   /**
    * Creates a new pointer controls manager
-   * @param {Object} demo - The demo instance to control
+   * @param {Atmosphere} atmosphere - The atmosphere instance to control
    */
-  constructor(demo) {
-    this.demo = demo;
-    this.renderer = demo.renderer;
+  constructor(atmosphere) {
+    this.atmosphere = atmosphere;
+    this.renderer = atmosphere.renderer;
 
     // Store initial values for camera control
     this.drag = undefined;
@@ -132,37 +133,37 @@ export class PointerManager {
 
     if (this.drag === "sun") {
       // Update sun position
-      this.demo.sunZenithAngleRadians -=
+      this.atmosphere.sunZenithAngleRadians -=
         (this.previousPointerY - pointerY) / kScale;
-      this.demo.sunZenithAngleRadians = Math.max(
+      this.atmosphere.sunZenithAngleRadians = Math.max(
         0,
-        Math.min(Math.PI, this.demo.sunZenithAngleRadians)
+        Math.min(Math.PI, this.atmosphere.sunZenithAngleRadians)
       );
-      this.demo.sunAzimuthAngleRadians +=
+      this.atmosphere.sunAzimuthAngleRadians +=
         (this.previousPointerX - pointerX) / kScale;
 
       // Update sun direction in the shader
       const sunDirection = new THREE.Vector3(
-        Math.sin(this.demo.sunZenithAngleRadians) *
-          Math.cos(this.demo.sunAzimuthAngleRadians),
-        Math.sin(this.demo.sunZenithAngleRadians) *
-          Math.sin(this.demo.sunAzimuthAngleRadians),
-        Math.cos(this.demo.sunZenithAngleRadians)
+        Math.sin(this.atmosphere.sunZenithAngleRadians) *
+          Math.cos(this.atmosphere.sunAzimuthAngleRadians),
+        Math.sin(this.atmosphere.sunZenithAngleRadians) *
+          Math.sin(this.atmosphere.sunAzimuthAngleRadians),
+        Math.cos(this.atmosphere.sunZenithAngleRadians)
       );
-      this.demo.material.uniforms.sun_direction.value = sunDirection;
+      this.atmosphere.material.uniforms.sun_direction.value = sunDirection;
     } else if (this.drag === "camera") {
       // Update camera position
-      this.demo.viewZenithAngleRadians +=
+      this.atmosphere.viewZenithAngleRadians +=
         (this.previousPointerY - pointerY) / kScale;
-      this.demo.viewZenithAngleRadians = Math.max(
+      this.atmosphere.viewZenithAngleRadians = Math.max(
         0,
-        Math.min(Math.PI / 2, this.demo.viewZenithAngleRadians)
+        Math.min(Math.PI / 2, this.atmosphere.viewZenithAngleRadians)
       );
-      this.demo.viewAzimuthAngleRadians +=
+      this.atmosphere.viewAzimuthAngleRadians +=
         (this.previousPointerX - pointerX) / kScale;
 
       // Update camera position based on spherical coordinates
-      this.demo.updateCameraPosition();
+      this.atmosphere.updateCameraPosition();
     }
 
     this.previousPointerX = pointerX;
@@ -196,8 +197,8 @@ export class PointerManager {
    */
   onWheel(event) {
     // Zoom in/out
-    this.demo.viewDistanceMeters *= event.deltaY > 0 ? 1.05 : 1 / 1.05;
-    this.demo.updateCameraPosition();
+    this.atmosphere.viewDistanceMeters *= event.deltaY > 0 ? 1.05 : 1 / 1.05;
+    this.atmosphere.updateCameraPosition();
 
     // Prevent default scroll behavior
     event.preventDefault();
@@ -237,12 +238,12 @@ export class PointerManager {
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(
       new THREE.Vector2(normalizedX, normalizedY),
-      this.demo.camera
+      this.atmosphere.camera
     );
 
     // Get the sun direction in world space
     const sunDirection =
-      this.demo.material.uniforms.sun_direction.value.clone();
+      this.atmosphere.material.uniforms.sun_direction.value.clone();
 
     // Calculate the angle between the ray and the sun direction
     const rayDirection = raycaster.ray.direction;
@@ -250,7 +251,7 @@ export class PointerManager {
 
     // Get the sun angular radius (in radians)
     const sunAngularRadius = Math.atan(
-      this.demo.material.uniforms.sun_size.value.x
+      this.atmosphere.material.uniforms.sun_size.value.x
     );
 
     // Add a larger tolerance for touch devices for easier selection

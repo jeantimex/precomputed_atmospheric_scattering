@@ -1,16 +1,16 @@
 /**
  * TouchManager class for handling touch interactions
- * Provides methods for handling touch gestures and updating the demo accordingly
+ * Provides methods for handling touch gestures and updating the atmosphere accordingly
  * Optimized for mobile devices with support for pinch-to-zoom and two-finger swipe
  */
 export class TouchManager {
   /**
    * Creates a new touch controls manager
-   * @param {Object} demo - The demo instance to control
+   * @param {Atmosphere} atmosphere - The atmosphere instance to control
    */
-  constructor(demo) {
-    this.demo = demo;
-    this.renderer = demo.renderer;
+  constructor(atmosphere) {
+    this.atmosphere = atmosphere;
+    this.renderer = atmosphere.renderer;
 
     // For pinch-to-zoom and two-finger gestures
     this.previousTouchDistance = 0;
@@ -73,9 +73,9 @@ export class TouchManager {
       this.previousTouchY = (touch1.clientY + touch2.clientY) / 2;
 
       // Cancel any existing drag operation when two fingers are used
-      // Use the PointerManager's resetDrag method instead of directly modifying demo.drag
-      if (this.demo.pointerManager) {
-        this.demo.pointerManager.resetDrag();
+      // Use the PointerManager's resetDrag method instead of directly modifying atmosphere.drag
+      if (this.atmosphere.pointerManager) {
+        this.atmosphere.pointerManager.resetDrag();
       }
     }
   }
@@ -131,8 +131,8 @@ export class TouchManager {
           const zoomFactor = currentDistance / this.previousTouchDistance;
 
           // Apply zoom (pinch in = zoom out, pinch out = zoom in)
-          this.demo.viewDistanceMeters /= zoomFactor;
-          this.demo.updateCameraPosition();
+          this.atmosphere.viewDistanceMeters /= zoomFactor;
+          this.atmosphere.updateCameraPosition();
         }
         this.previousTouchDistance = currentDistance;
       } else if (this.twoFingerMode === "swipe") {
@@ -142,17 +142,17 @@ export class TouchManager {
         const deltaTilt = (currentTouchY - this.previousTouchY) * kTiltScale;
 
         // Update camera tilt (zenith angle)
-        this.demo.viewZenithAngleRadians -= deltaTilt;
+        this.atmosphere.viewZenithAngleRadians -= deltaTilt;
 
         // Clamp the zenith angle to prevent flipping or looking too far down
         // Expanded the range slightly to allow more movement
-        this.demo.viewZenithAngleRadians = Math.max(
+        this.atmosphere.viewZenithAngleRadians = Math.max(
           0.05,
-          Math.min(Math.PI / 2 - 0.05, this.demo.viewZenithAngleRadians)
+          Math.min(Math.PI / 2 - 0.05, this.atmosphere.viewZenithAngleRadians)
         );
 
         // Update camera position
-        this.demo.updateCameraPosition();
+        this.atmosphere.updateCameraPosition();
 
         this.previousTouchY = currentTouchY;
       }

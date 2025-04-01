@@ -22,12 +22,12 @@ const kSunAngularRadius = 0.00935 / 2; // Angular radius of the sun in radians
 const kLengthUnitInMeters = 1000; // Conversion factor: 1 unit = 1000 meters
 
 /**
- * Main Demo class for atmospheric scattering visualization
+ * Main Atmosphere class for atmospheric scattering visualization
  * Implements a Three.js based renderer for the precomputed atmospheric scattering model
  */
-export class Demo {
+export class Atmosphere {
   /**
-   * Creates a new atmospheric scattering demo
+   * Creates a new atmospheric scattering atmosphere
    * @param {HTMLElement} container - The DOM element to render into
    */
   constructor(container) {

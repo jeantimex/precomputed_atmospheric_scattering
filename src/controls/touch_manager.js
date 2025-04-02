@@ -144,11 +144,10 @@ export class TouchManager {
         // Update camera tilt (zenith angle)
         this.atmosphere.viewZenithAngleRadians -= deltaTilt;
 
-        // Clamp the zenith angle to prevent flipping or looking too far down
-        // Expanded the range slightly to allow more movement
+        // Clamp the zenith angle to prevent flipping or looking beyond horizon/zenith
         this.atmosphere.viewZenithAngleRadians = Math.max(
-          0.05,
-          Math.min(Math.PI / 2 - 0.05, this.atmosphere.viewZenithAngleRadians)
+          0, // Allow looking straight up (zenith)
+          Math.min(Math.PI / 2, this.atmosphere.viewZenithAngleRadians) // Allow looking exactly at the horizon
         );
 
         // Update camera position

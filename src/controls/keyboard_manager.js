@@ -27,6 +27,9 @@ export class KeyboardManager {
         const hidden = helpElement.style.display == "none";
         helpElement.style.display = hidden ? "block" : "none";
       }
+    } else if (key == "v") {
+      // Toggle sphere visibility
+      this.atmosphere.toggleSphereVisibility();
     } else if (key == "+") {
       // Increase exposure
       this.atmosphere.material.uniforms.exposure.value *= 1.1;

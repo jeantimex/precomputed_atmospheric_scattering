@@ -46,6 +46,9 @@ export class Atmosphere {
     this.viewAzimuthAngleRadians = 0; // Horizontal angle
     this.viewDistanceMeters = 9000; // Distance from origin
 
+    // Sphere visibility control
+    this.sphereVisible = true;
+
     this.setupRenderer();
     this.setupCamera();
     this.setupEventListeners();
@@ -244,6 +247,9 @@ export class Atmosphere {
             Math.cos(kSunAngularRadius)
           ),
         },
+        
+        // Sphere visibility control
+        sphere_visible: { value: this.sphereVisible },
       },
       vertexShader,
       fragmentShader,
@@ -407,5 +413,13 @@ export class Atmosphere {
 
     // Update exposure
     this.material.uniforms.exposure.value = exposure;
+  }
+
+  /**
+   * Toggle the visibility of the floating sphere
+   */
+  toggleSphereVisibility() {
+    this.sphereVisible = !this.sphereVisible;
+    this.material.uniforms.sphere_visible.value = this.sphereVisible;
   }
 }

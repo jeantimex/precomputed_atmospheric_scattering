@@ -52,6 +52,7 @@ export const fragmentShader = /* glsl */ `
   uniform vec3 earth_center;
   uniform vec3 sun_direction;
   uniform vec2 sun_size;
+  uniform bool sphere_visible;
   
   // View ray from the vertex shader
   in vec3 view_ray;
@@ -87,6 +88,11 @@ export const fragmentShader = /* glsl */ `
    * Returns a value between 0 (fully occluded) and 1 (fully visible)
    */
   float GetSunVisibility(vec3 point, vec3 sun_direction) {
+  // If sphere is not visible, no occlusion
+  if (!sphere_visible) {
+    return 1.0;
+  }
+  
   vec3 p = point - kSphereCenter;
   float p_dot_v = dot(p, sun_direction);
   float p_dot_p = dot(p, p);
@@ -107,6 +113,11 @@ export const fragmentShader = /* glsl */ `
    * Used for ambient lighting calculations
    */
   float GetSkyVisibility(vec3 point) {
+  // If sphere is not visible, no occlusion
+  if (!sphere_visible) {
+    return 1.0;
+  }
+  
   vec3 p = point - kSphereCenter;
   float p_dot_p = dot(p, p);
   return
@@ -119,6 +130,13 @@ export const fragmentShader = /* glsl */ `
    */
   void GetSphereShadowInOut(vec3 view_direction, vec3 sun_direction,
     out float d_in, out float d_out) {
+  // If sphere is not visible, no shadow
+  if (!sphere_visible) {
+    d_in = 0.0;
+    d_out = 0.0;
+    return;
+  }
+  
   vec3 pos = camera - kSphereCenter;
   float pos_dot_sun = dot(pos, sun_direction);
   float view_dot_sun = dot(view_direction, sun_direction);
@@ -182,8 +200,8 @@ export const fragmentShader = /* glsl */ `
   float sphere_alpha = 0.0;
   vec3 sphere_radiance = vec3(0.0);
   
-  // If ray intersects sphere, calculate lighting and scattering
-  if (distance_to_intersection > 0.0) {
+  // If ray intersects sphere and sphere is visible, calculate lighting and scattering
+  if (distance_to_intersection > 0.0 && sphere_visible) {
     // Calculate sphere coverage for anti-aliasing
     float ray_sphere_distance =
       kSphereRadius - sqrt(ray_sphere_center_squared_distance);

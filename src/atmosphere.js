@@ -351,13 +351,20 @@ export class Atmosphere {
    * Start the animation loop for continuous rendering
    */
   startAnimationLoop() {
-    this.renderer.setAnimationLoop(this.render.bind(this));
+    // Ensure 'this' is properly bound to the render method
+    const boundRender = this.render.bind(this);
+    this.renderer.setAnimationLoop(boundRender);
   }
 
   /**
    * Render the scene
    */
   render() {
+    // Update camera position in the shader if material is initialized
+    if (this.material && this.material.uniforms) {
+      this.material.uniforms.camera.value.copy(this.camera.position);
+    }
+    
     this.renderer.render(this.scene, this.camera);
   }
 

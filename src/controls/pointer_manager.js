@@ -79,13 +79,20 @@ export class PointerManager {
       this.previousPointerY = event.offsetY;
     }
 
-    // Check if the pointer is over the sun
-    if (this.isPointerOverSun(event)) {
-      this.drag = "sun";
-      this.renderer.domElement.style.cursor = "grabbing";
-    } else {
+    // Check if the pointer is over the sun (safely)
+    try {
+      if (this.atmosphere.material && this.atmosphere.material.uniforms && this.isPointerOverSun(event)) {
+        this.drag = "sun";
+        this.renderer.domElement.style.cursor = "grabbing";
+      } else {
+        this.drag = "camera";
+        this.renderer.domElement.style.cursor = "grabbing";
+      }
+    } catch (error) {
+      // If there's an error checking for sun hover, default to camera drag
       this.drag = "camera";
       this.renderer.domElement.style.cursor = "grabbing";
+      console.warn("Error in pointer down:", error);
     }
 
     // Capture pointer to ensure we get events even if the pointer moves outside the canvas
@@ -103,15 +110,19 @@ export class PointerManager {
     // Prevent default behavior to avoid unwanted scrolling
     event.preventDefault();
 
-    // Update cursor when hovering over the sun (only for non-touch)
-    if (
-      !this.drag &&
-      event.pointerType !== "touch" &&
-      this.isPointerOverSun(event)
-    ) {
-      this.renderer.domElement.style.cursor = "grab";
-    } else if (!this.drag && event.pointerType !== "touch") {
-      this.renderer.domElement.style.cursor = "auto";
+    // Only check for sun hover if material is initialized
+    if (!this.drag && event.pointerType !== "touch") {
+      try {
+        if (this.isPointerOverSun(event)) {
+          this.renderer.domElement.style.cursor = "grab";
+        } else {
+          this.renderer.domElement.style.cursor = "auto";
+        }
+      } catch (error) {
+        // If there's an error checking for sun hover, just use default cursor
+        this.renderer.domElement.style.cursor = "auto";
+        console.warn("Error checking sun hover:", error);
+      }
     }
 
     if (!this.drag) return;
@@ -210,34 +221,20 @@ export class PointerManager {
    * @returns {boolean} - True if the pointer is over the sun
    */
   isPointerOverSun(event) {
-    // Get canvas dimensions
-    const canvas = this.renderer.domElement;
-    const width = canvas.clientWidth;
-    const height = canvas.clientHeight;
-
-    // Get the correct coordinates regardless of event type
-    let clientX, clientY;
-
-    // Handle both touch and mouse events
-    if (event.touches && event.touches.length > 0) {
-      // Touch event
-      const rect = canvas.getBoundingClientRect();
-      clientX = event.touches[0].clientX - rect.left;
-      clientY = event.touches[0].clientY - rect.top;
-    } else {
-      // Mouse or pointer event
-      clientX = event.offsetX;
-      clientY = event.offsetY;
+    // If material is not initialized yet, return false
+    if (!this.atmosphere.material || !this.atmosphere.material.uniforms) {
+      return false;
     }
-
-    // Normalize coordinates to [-1, 1]
-    const normalizedX = (clientX / width) * 2 - 1;
-    const normalizedY = -(clientY / height) * 2 + 1;
-
-    // Create a ray from the camera through the pointer position
+    
+    // Create a raycaster from the camera through the pointer position
     const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2(
+      (event.clientX / window.innerWidth) * 2 - 1,
+      -(event.clientY / window.innerHeight) * 2 + 1
+    );
+
     raycaster.setFromCamera(
-      new THREE.Vector2(normalizedX, normalizedY),
+      pointer,
       this.atmosphere.camera
     );
 
@@ -254,10 +251,8 @@ export class PointerManager {
       this.atmosphere.material.uniforms.sun_size.value.x
     );
 
-    // Add a larger tolerance for touch devices for easier selection
-    const selectionTolerance = event.pointerType === "touch" ? 2.5 : 1.5;
-
-    // Check if the angle is less than the sun's angular radius (plus tolerance)
-    return angleBetween < sunAngularRadius * selectionTolerance;
+    // Return true if the angle between the ray and the sun direction
+    // is less than the sun's angular radius (meaning the pointer is over the sun)
+    return angleBetween < sunAngularRadius * 3; // Multiply by 3 for easier selection
   }
 }

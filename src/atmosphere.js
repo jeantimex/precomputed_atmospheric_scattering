@@ -41,19 +41,6 @@ export class Atmosphere {
     this.sunZenithAngleRadians = 1.3; // Angle from zenith (0 = directly overhead)
     this.sunAzimuthAngleRadians = 2.9; // Horizontal angle (counterclockwise from x-axis)
 
-    // Store initial values for camera control
-    // Note: drag state is now managed by PointControlsManager
-    this.previousPointerX = 0;
-    this.previousPointerY = 0;
-
-    // For pinch-to-zoom and two-finger gestures - these properties are still needed
-    // by the TouchControlsManager but are initialized here for consistency
-    this.previousTouchDistance = 0;
-    this.activeTouches = [];
-    this.previousTouchY = 0;
-    this.twoFingerMode = null; // Can be 'zoom' or 'swipe'
-    this.gestureDetectionThreshold = 10; // Pixels to determine gesture type
-
     // Initial camera angles (similar to the original implementation)
     this.viewZenithAngleRadians = 1.47; // Angle from zenith
     this.viewAzimuthAngleRadians = 0; // Horizontal angle

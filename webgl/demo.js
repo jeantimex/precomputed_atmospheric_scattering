@@ -164,20 +164,11 @@ concatenated because WebGL2 does not support multiple shaders of the same type):
     }
     const gl = this.gl;
     const vertexShader =
-        Utils.createShader(gl, gl.VERTEX_SHADER,
-            this.vertexShaderSource.replace('#version 330', '#version 300 es'));
+        Utils.createShader(gl, gl.VERTEX_SHADER, this.vertexShaderSource);
     const fragmentShader = Utils.createShader(
         gl,
         gl.FRAGMENT_SHADER,
-        this.atmosphereShaderSource
-            .replace('#version 330',
-                     '#version 300 es\n' +
-                     'precision highp float;\n' +
-                     'precision highp sampler3D;') +
-        this.fragmentShaderSource
-            .replace('#version 330', '')
-            .replace('const float PI = 3.14159265;', '')
-        );
+        `${this.atmosphereShaderSource}\n${this.fragmentShaderSource}`);
     this.program = gl.createProgram();
     gl.attachShader(this.program, vertexShader);
     gl.attachShader(this.program, fragmentShader);

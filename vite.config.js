@@ -10,10 +10,12 @@ export default defineConfig({
     // Output directory for the build
     outDir: 'dist',
 
-    // Configure the entry point
+    // Configure multiple entry points (main demo + raw WebGL/WebGPU demos)
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'index.html'),
+        webgl: resolve(__dirname, 'webgl/index.html'),
+        webgpu: resolve(__dirname, 'webgpu/index.html'),
       },
     },
   },

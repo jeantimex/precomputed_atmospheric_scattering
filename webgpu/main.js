@@ -1,3 +1,5 @@
+import { loadPrecomputedTextures } from './utils.js';
+
 const statusLabel = document.getElementById('status');
 const canvas = document.getElementById('webgpu-canvas');
 
@@ -110,6 +112,8 @@ async function main() {
   try {
     const gpuState = await initWebGPU(canvas);
     const pipeline = await initPipeline(gpuState.device, gpuState.format);
+    const precomputedTextures = await loadPrecomputedTextures(gpuState.device);
+    console.info('Loaded LUT textures:', precomputedTextures);
 
     const render = () => {
       draw(gpuState.device, gpuState.context, pipeline);

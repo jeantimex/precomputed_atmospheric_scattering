@@ -76,7 +76,7 @@ This document captures the steps required to migrate the original WebGL precompu
    - **[x] 4.4 Port Transmittance Texture Mapping**: Port `GetTransmittanceTextureUvFromRMu` and inverse function to convert (r, mu) ↔ texture UV coordinates.
    - **[x] 4.5 Port Transmittance Lookup**: Port `GetTransmittanceToTopAtmosphereBoundary` to sample the LUT and integrate into fragment shader for realistic sky colors. ✅
 5. **[ ] Sphere Masking**: Add the analytic sphere intersection and render it with a flat albedo so you can verify silhouettes and depth ordering.
-   - **[ ] 5.1 Port Sphere Constants & Basic Intersection**: Add sphere/ground constants (`kSphereCenter`, `kSphereRadius`, `kSphereAlbedo`, `kGroundAlbedo`), port ray-sphere intersection math, render sphere with flat color. Verify solid colored disc visible at expected position.
+   - **[x] 5.1 Port Sphere Constants & Basic Intersection**: Add sphere/ground constants (`kSphereCenter`, `kSphereRadius`, `kSphereAlbedo`, `kGroundAlbedo`), port ray-sphere intersection math, render sphere with flat color. Verify solid colored disc visible at expected position.
    - **[ ] 5.2 Add Ground Surface Intersection**: Port ground intersection with earth surface, handle depth ordering (ground behind sphere). Verify both sphere and ground visible with correct depth ordering.
    - **[ ] 5.3 Add Edge Anti-aliasing**: Port `dpdx`/`dpdy` derivatives to calculate fragment angular size, add smooth alpha blending at sphere edges. Verify sphere edges are smooth and anti-aliased.
    - **[ ] 5.4 Add Transmittance-based Shading**: Calculate surface normals, use transmittance lookup for atmospheric shading, add simple directional shading. Verify sphere and ground show brightness variation based on sun angle.

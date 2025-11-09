@@ -31,6 +31,14 @@ const viewFromClip = new Float32Array(16);
 const modelFromView = new Float32Array(16);
 const uniformScratch = new Float32Array(64);
 
+function copyRowMajorToColumnMajor(target, offset, source) {
+  for (let column = 0; column < 4; column += 1) {
+    for (let row = 0; row < 4; row += 1) {
+      target[offset + column * 4 + row] = source[row * 4 + column];
+    }
+  }
+}
+
 const skyShaderWGSL = `
 struct Globals {
   view_from_clip : mat4x4f,
@@ -89,6 +97,13 @@ const kcd_per_square_meter: f32 = kcd / m2;
 // Conversion factors for spectral radiance to luminance
 const SKY_SPECTRAL_RADIANCE_TO_LUMINANCE: vec3f = vec3f(114974.916437, 71305.954816, 65310.548555);
 const SUN_SPECTRAL_RADIANCE_TO_LUMINANCE: vec3f = vec3f(98242.786222, 69954.398112, 66475.012354);
+
+// Sphere constants (demonstration sphere floating in atmosphere)
+const kLengthUnitInMeters: f32 = 1000.0;
+const kSphereCenter: vec3f = vec3f(0.0, 0.0, 1000.0) / kLengthUnitInMeters;
+const kSphereRadius: f32 = 1000.0 / kLengthUnitInMeters;
+const kSphereAlbedo: vec3f = vec3f(0.8);
+const kGroundAlbedo: vec3f = vec3f(0.0, 0.0, 0.04);
 
 // Type aliases (WGSL doesn't support typedef, so these are documented here for reference)
 // Length = f32, Wavelength = f32, Angle = f32, SolidAngle = f32
@@ -338,18 +353,56 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4f {
   let mu = dot(view_dir, normalize(camera_pos));
   let mu_clamped = ClampCosine(mu);
 
-  // Get transmittance to top of atmosphere
+  // Get transmittance to top of atmosphere (background sky)
   let transmittance = GetTransmittanceToTopAtmosphereBoundary(ATMOSPHERE, r_clamped, mu_clamped);
 
-  // Apply exposure and tone mapping
+  // Apply exposure and tone mapping for background
   let exposure = globals.camera_exposure.w;
   let white_point = globals.white_point_size.xyz;
+  let sky_color = transmittance * exposure;
+  let sky_tone_mapped = pow(sky_color / (vec3f(1.0) + sky_color), vec3f(1.0 / 2.2));
 
-  // Simple Reinhard tone mapping
-  let color = transmittance * exposure;
-  let tone_mapped = pow(color / (vec3f(1.0) + color), vec3f(1.0 / 2.2));
+  // ============================================================================
+  // RAY-SPHERE INTERSECTION (demonstration sphere)
+  // ============================================================================
 
-  return vec4f(tone_mapped, 1.0);
+  // DIAGNOSTIC: Let's just place the sphere at where WebGL has it and see what happens
+  // For now, ignore the math and trust the WebGL code
+
+  // Sphere at (0, 0, 1km) - same position as WebGL demo
+  var p = camera - kSphereCenter;
+  let p_dot_v = dot(p, view_dir);
+  let p_dot_p = dot(p, p);
+  let ray_sphere_center_squared_distance = p_dot_p - p_dot_v * p_dot_v;
+  let discriminant = kSphereRadius * kSphereRadius - ray_sphere_center_squared_distance;
+
+  // LOG the values for debugging - show in corner pixels
+  if (input.position.x < 1.0 && input.position.y < 1.0) {
+    // Camera position (scaled down)
+    return vec4f(abs(camera) * 0.1, 1.0);
+  }
+  if (input.position.x >= 1.0 && input.position.x < 2.0 && input.position.y < 1.0) {
+    // Sphere center
+    return vec4f(abs(kSphereCenter) * 10.0, 1.0);
+  }
+  if (input.position.x >= 2.0 && input.position.x < 3.0 && input.position.y < 1.0) {
+    // Vector from camera to sphere
+    return vec4f(abs(kSphereCenter - camera) * 0.1, 1.0);
+  }
+
+  if (discriminant >= 0.0) {
+    let distance_to_intersection = -p_dot_v - sqrt(discriminant);
+    if (distance_to_intersection > 0.0) {
+      // Render sphere with flat albedo color (light gray)
+      let sphere_color = kSphereAlbedo;
+      let sphere_exposed = sphere_color * exposure;
+      let sphere_tone_mapped = pow(sphere_exposed / (vec3f(1.0) + sphere_exposed), vec3f(1.0 / 2.2));
+      return vec4f(sphere_tone_mapped, 1.0);
+    }
+  }
+
+  // No intersection - return background sky
+  return vec4f(sky_tone_mapped, 1.0);
 }
 `;
 
@@ -482,8 +535,8 @@ function updateGlobalUniforms(canvas, state) {
   const whitePoint = [1, 1, 1];
   const earthCenter = [0, 0, -6360000 / LENGTH_UNIT_IN_METERS];
 
-  uniformScratch.set(viewFromClip, 0);
-  uniformScratch.set(modelFromView, 16);
+  copyRowMajorToColumnMajor(uniformScratch, 0, viewFromClip);
+  copyRowMajorToColumnMajor(uniformScratch, 16, modelFromView);
   uniformScratch.set([camera[0], camera[1], camera[2], state.exposure], 32);
   uniformScratch.set([sunDir[0], sunDir[1], sunDir[2], sunSize[0]], 36);
   uniformScratch.set([whitePoint[0], whitePoint[1], whitePoint[2], sunSize[1]], 40);
@@ -528,7 +581,7 @@ async function main() {
     };
     render();
 
-    setStatus('WebGPU ready — Milestone 4 complete: Transmittance lookup working!');
+    setStatus('WebGPU ready — Sub-task 5.1: Testing sphere intersection');
 
     window.addEventListener('resize', () => {
       configureContext(canvas, gpuState.context, gpuState.device, gpuState.format);

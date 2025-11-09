@@ -254,23 +254,28 @@ async function main() {
     }, { passive: false });
 
     let dragMode = null;
-    let prevMouseX = 0;
-    let prevMouseY = 0;
+    let prevPointerX = 0;
+    let prevPointerY = 0;
     const kScale = 500;
 
-    canvas.addEventListener('mousedown', (event) => {
-      dragMode = event.ctrlKey ? 'sun' : 'camera';
-      prevMouseX = event.offsetX;
-      prevMouseY = event.offsetY;
+    canvas.addEventListener('pointerdown', (event) => {
+      dragMode = event.shiftKey ? 'sun' : 'camera';
+      const rect = canvas.getBoundingClientRect();
+      prevPointerX = event.clientX - rect.left;
+      prevPointerY = event.clientY - rect.top;
+      canvas.setPointerCapture(event.pointerId);
       event.preventDefault();
     });
 
-    canvas.addEventListener('mousemove', (event) => {
-      if (!dragMode) {
+    canvas.addEventListener('pointermove', (event) => {
+      if (!dragMode || !canvas.hasPointerCapture(event.pointerId)) {
         return;
       }
-      const dx = prevMouseX - event.offsetX;
-      const dy = prevMouseY - event.offsetY;
+      const rect = canvas.getBoundingClientRect();
+      const pointerX = event.clientX - rect.left;
+      const pointerY = event.clientY - rect.top;
+      const dx = prevPointerX - pointerX;
+      const dy = prevPointerY - pointerY;
       if (dragMode === 'sun') {
         controls.sunZenithAngleRadians -= dy / kScale;
         controls.sunZenithAngleRadians = Math.min(Math.PI, Math.max(0, controls.sunZenithAngleRadians));
@@ -281,15 +286,19 @@ async function main() {
             Math.min(Math.PI / 2, Math.max(0, controls.viewZenithAngleRadians));
         controls.viewAzimuthAngleRadians += dx / kScale;
       }
-      prevMouseX = event.offsetX;
-      prevMouseY = event.offsetY;
+      prevPointerX = pointerX;
+      prevPointerY = pointerY;
     });
 
-    const endDrag = () => {
+    const endDrag = (event) => {
+      if (!canvas.hasPointerCapture(event.pointerId)) {
+        return;
+      }
+      canvas.releasePointerCapture(event.pointerId);
       dragMode = null;
     };
-    canvas.addEventListener('mouseup', endDrag);
-    canvas.addEventListener('mouseleave', endDrag);
+    canvas.addEventListener('pointerup', endDrag);
+    canvas.addEventListener('pointercancel', endDrag);
 
     window.addEventListener('resize', () => {
       configureContext(canvas, gpuState.context, gpuState.device, gpuState.format);

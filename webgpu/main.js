@@ -7,6 +7,7 @@ import {
 import skyShaderWGSL from './shader.wgsl?raw';
 
 const canvas = document.getElementById('webgpu-canvas');
+const helpElement = document.getElementById('help');
 
 const LENGTH_UNIT_IN_METERS = 1000.0;
 const SUN_ANGULAR_RADIUS = 0.00935 / 2.0;
@@ -237,6 +238,13 @@ async function main() {
       }
       if (event.key === '-') {
         controls.exposure = Math.max(0.01, controls.exposure / 1.1);
+        event.preventDefault();
+        return;
+      }
+      if (event.key === 'h' || event.key === 'H') {
+        if (helpElement) {
+          helpElement.classList.toggle('hidden');
+        }
         event.preventDefault();
         return;
       }

@@ -1,8 +1,6 @@
-<!DOCTYPE html>
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Precomputed Atmospheric Scattering - WebGL Demo</title>
     <style>
       html,
@@ -25,8 +23,6 @@
         width: 100%;
         height: 100%;
         z-index: 1;
-        touch-action: none; /* Prevent browser handling of touch events */
-        display: block; /* Ensure canvas is a block element */
       }
       #help {
         position: absolute;
@@ -37,20 +33,12 @@
         pointer-events: none; /* Make the help text not receive pointer events */
         text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8); /* Add text shadow for better readability */
       }
-      #version {
-        position: absolute;
-        bottom: 10px;
-        right: 10px;
-        color: white;
-        z-index: 2;
-        pointer-events: none; /* Make the version text not receive pointer events */
-        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8); /* Add text shadow for better readability */
-        font-size: 0.8em;
-        opacity: 0.8;
+      #help * {
+        pointer-events: none; /* Ensure all child elements don't receive pointer events */
       }
       a {
         color: #8cf;
-        pointer-events: auto; /* Allow links to receive pointer events */
+        pointer-events: auto !important; /* Allow links to receive pointer events, override the above rule */
       }
       ul {
         padding-left: 1em;
@@ -58,18 +46,12 @@
       li {
         list-style: none;
       }
-      
-      /* Media query for smaller screens */
-      @media (max-width: 768px) {
-        #help {
-          font-size: 0.9em;
-        }
-      }
     </style>
-    <script type="module" crossorigin src="/precomputed_atmospheric_scattering/assets/main-Cq2AIAQ0.js"></script>
+    <script type="module" crossorigin src="/precomputed_atmospheric_scattering/assets/main-DqTvDV1p.js"></script>
+    <link rel="modulepreload" crossorigin href="/precomputed_atmospheric_scattering/assets/modulepreload-polyfill-B5Qt9EMX.js">
   </head>
   <body>
-    <canvas id="glcanvas"></canvas>
+    <canvas id="glcanvas" width="400" height="300"></canvas>
     <ul id="help">
       <li>
         <a href="https://ebruneton.github.io/precomputed_atmospheric_scattering/index.html">
@@ -83,6 +65,7 @@
           <li>drag: move camera view</li>
           <li>drag sun directly: move sun position</li>
           <li>wheel or pinch: zoom in/out</li>
+          <li>two-finger swipe: adjust camera tilt</li>
         </ul>
       </li>
       <li>
@@ -94,6 +77,5 @@
         </ul>
       </li>
     </ul>
-    <div id="version">v0.0.11</div>
   </body>
 </html>

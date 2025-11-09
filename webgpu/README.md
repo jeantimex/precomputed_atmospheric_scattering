@@ -73,7 +73,7 @@ This document captures the steps required to migrate the original WebGL precompu
    - **[x] 4.1 Bind Textures & Samplers**: Create sampler, update bind group to include transmittance texture and sampler, verify bindings compile.
    - **[x] 4.2 Port Atmosphere Constants**: Port AtmosphereParameters struct, physical constants (units, PI, etc.), and type definitions from GLSL to WGSL.
    - **[x] 4.3 Port Geometry Functions**: Port helper functions: `ClampRadius`, `DistanceToTopAtmosphereBoundary`, `ClampCosine`, `SafeSqrt`.
-   - **[ ] 4.4 Port Transmittance Texture Mapping**: Port `GetTransmittanceTextureUvFromRMu` and inverse function to convert (r, mu) ↔ texture UV coordinates.
+   - **[x] 4.4 Port Transmittance Texture Mapping**: Port `GetTransmittanceTextureUvFromRMu` and inverse function to convert (r, mu) ↔ texture UV coordinates.
    - **[ ] 4.5 Port Transmittance Lookup**: Port `GetTransmittanceToTopAtmosphereBoundary` to sample the LUT and integrate into fragment shader for realistic sky colors.
 5. **[ ] Sphere Masking**: Add the analytic sphere intersection and render it with a flat albedo so you can verify silhouettes and depth ordering.
 6. **[ ] Full Atmosphere**: Integrate scattering/irradiance functions, sun visibility, and tonemapping. Compare against WebGL presets and tweak until they match within acceptable tolerance.

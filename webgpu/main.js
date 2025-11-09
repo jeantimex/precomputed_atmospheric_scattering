@@ -49,6 +49,16 @@ struct Globals {
 // ATMOSPHERE CONSTANTS AND TYPE DEFINITIONS
 // ============================================================================
 
+// Texture dimensions for precomputed lookup tables
+const TRANSMITTANCE_TEXTURE_WIDTH: i32 = 256;
+const TRANSMITTANCE_TEXTURE_HEIGHT: i32 = 64;
+const SCATTERING_TEXTURE_R_SIZE: i32 = 32;
+const SCATTERING_TEXTURE_MU_SIZE: i32 = 128;
+const SCATTERING_TEXTURE_MU_S_SIZE: i32 = 32;
+const SCATTERING_TEXTURE_NU_SIZE: i32 = 8;
+const IRRADIANCE_TEXTURE_WIDTH: i32 = 64;
+const IRRADIANCE_TEXTURE_HEIGHT: i32 = 16;
+
 // Physical unit constants (base units set to 1.0)
 const m: f32 = 1.0;
 const nm: f32 = 1.0;
@@ -210,6 +220,66 @@ fn DistanceToBottomAtmosphereBoundary(atmosphere: AtmosphereParameters, r: f32, 
 fn RayIntersectsGround(atmosphere: AtmosphereParameters, r: f32, mu: f32) -> bool {
   return mu < 0.0 && r * r * (mu * mu - 1.0) +
       atmosphere.bottom_radius * atmosphere.bottom_radius >= 0.0;
+}
+
+// ============================================================================
+// TEXTURE COORDINATE MAPPING FUNCTIONS
+// ============================================================================
+
+// Maps a unit range value [0,1] to texture coordinates with half-pixel offset
+fn GetTextureCoordFromUnitRange(x: f32, texture_size: i32) -> f32 {
+  return 0.5 / f32(texture_size) + x * (1.0 - 1.0 / f32(texture_size));
+}
+
+// Inverse of GetTextureCoordFromUnitRange
+fn GetUnitRangeFromTextureCoord(u: f32, texture_size: i32) -> f32 {
+  return (u - 0.5 / f32(texture_size)) / (1.0 - 1.0 / f32(texture_size));
+}
+
+// Maps (r, mu) to UV coordinates in the transmittance LUT
+// r: radius from planet center
+// mu: cosine of zenith angle
+fn GetTransmittanceTextureUvFromRMu(atmosphere: AtmosphereParameters, r: f32, mu: f32) -> vec2f {
+  // Height at horizon
+  let H = sqrt(atmosphere.top_radius * atmosphere.top_radius -
+      atmosphere.bottom_radius * atmosphere.bottom_radius);
+  // Distance to horizon
+  let rho = SafeSqrt(r * r - atmosphere.bottom_radius * atmosphere.bottom_radius);
+  // Distance to top atmosphere boundary
+  let d = DistanceToTopAtmosphereBoundary(atmosphere, r, mu);
+  let d_min = atmosphere.top_radius - r;
+  let d_max = rho + H;
+  let x_mu = (d - d_min) / (d_max - d_min);
+  let x_r = rho / H;
+  return vec2f(
+    GetTextureCoordFromUnitRange(x_mu, TRANSMITTANCE_TEXTURE_WIDTH),
+    GetTextureCoordFromUnitRange(x_r, TRANSMITTANCE_TEXTURE_HEIGHT)
+  );
+}
+
+// Inverse mapping: UV coordinates to (r, mu)
+// Returns a struct instead of using out parameters (WGSL doesn't have out params)
+struct RMuResult {
+  r: f32,
+  mu: f32,
+}
+
+fn GetRMuFromTransmittanceTextureUv(atmosphere: AtmosphereParameters, uv: vec2f) -> RMuResult {
+  let x_mu = GetUnitRangeFromTextureCoord(uv.x, TRANSMITTANCE_TEXTURE_WIDTH);
+  let x_r = GetUnitRangeFromTextureCoord(uv.y, TRANSMITTANCE_TEXTURE_HEIGHT);
+  let H = sqrt(atmosphere.top_radius * atmosphere.top_radius -
+      atmosphere.bottom_radius * atmosphere.bottom_radius);
+  let rho = H * x_r;
+  let r = sqrt(rho * rho + atmosphere.bottom_radius * atmosphere.bottom_radius);
+  let d_min = atmosphere.top_radius - r;
+  let d_max = rho + H;
+  let d = d_min + x_mu * (d_max - d_min);
+  let mu = select((H * H - rho * rho - d * d) / (2.0 * r * d), 1.0, d == 0.0);
+
+  var result: RMuResult;
+  result.r = r;
+  result.mu = ClampCosine(mu);
+  return result;
 }
 
 struct VertexInput {
@@ -422,7 +492,7 @@ async function main() {
     };
     render();
 
-    setStatus('WebGPU ready — Sub-task 4.3: Geometry functions ported');
+    setStatus('WebGPU ready — Sub-task 4.4: Texture mapping ported');
 
     window.addEventListener('resize', () => {
       configureContext(canvas, gpuState.context, gpuState.device, gpuState.format);

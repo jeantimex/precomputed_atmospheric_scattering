@@ -42,6 +42,8 @@ struct Globals {
 }
 
 @group(0) @binding(0) var<uniform> globals : Globals;
+@group(0) @binding(1) var transmittance_texture : texture_2d<f32>;
+@group(0) @binding(2) var transmittance_sampler : sampler;
 
 struct VertexInput {
   @location(0) position : vec2f,
@@ -69,7 +71,8 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4f {
   let sun_dir = normalize(globals.sun_direction_size.xyz);
   let cosine = max(dot(view_dir, sun_dir), 0.0);
 
-  // Gradient from dark blue to bright orange based on sun direction
+  // TODO: Use transmittance_texture for realistic sky colors
+  // For now, keep test gradient to verify bindings compile correctly
   let dark_blue = vec3f(0.1, 0.2, 0.4);
   let bright_orange = vec3f(1.0, 0.6, 0.2);
   let sky_color = mix(dark_blue, bright_orange, cosine * cosine);
@@ -221,11 +224,23 @@ async function main() {
     const precomputedTextures = await loadPrecomputedTextures(gpuState.device);
     console.info('Loaded LUT textures:', precomputedTextures);
 
+    // Create sampler for LUT textures (linear filtering, clamp to edge)
+    const lutSampler = gpuState.device.createSampler({
+      minFilter: 'linear',
+      magFilter: 'linear',
+      addressModeU: 'clamp-to-edge',
+      addressModeV: 'clamp-to-edge',
+    });
+
     const quadBuffer = createFullscreenQuadBuffer(gpuState.device);
     const uniformBuffer = createGlobalUniformBuffer(gpuState.device);
     const bindGroup = gpuState.device.createBindGroup({
       layout: pipeline.getBindGroupLayout(0),
-      entries: [{ binding: 0, resource: { buffer: uniformBuffer } }],
+      entries: [
+        { binding: 0, resource: { buffer: uniformBuffer } },
+        { binding: 1, resource: precomputedTextures.transmittance.createView() },
+        { binding: 2, resource: lutSampler },
+      ],
     });
 
     const controls = { ...DEFAULT_STATE };

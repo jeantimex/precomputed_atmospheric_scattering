@@ -166,6 +166,52 @@ const ATMOSPHERE: AtmosphereParameters = AtmosphereParameters(
   -0.207912
 );
 
+// ============================================================================
+// GEOMETRY HELPER FUNCTIONS
+// ============================================================================
+
+// Clamps cosine of zenith angle to valid range [-1, 1]
+fn ClampCosine(mu: f32) -> f32 {
+  return clamp(mu, -1.0, 1.0);
+}
+
+// Clamps distance to non-negative values
+fn ClampDistance(d: f32) -> f32 {
+  return max(d, 0.0);
+}
+
+// Clamps radius to atmosphere bounds [bottom_radius, top_radius]
+fn ClampRadius(atmosphere: AtmosphereParameters, r: f32) -> f32 {
+  return clamp(r, atmosphere.bottom_radius, atmosphere.top_radius);
+}
+
+// Safe square root that avoids NaN for negative values
+fn SafeSqrt(a: f32) -> f32 {
+  return sqrt(max(a, 0.0));
+}
+
+// Computes distance to the top atmosphere boundary for a ray (r, mu)
+// r: length of the position vector (radius from planet center)
+// mu: cosine of the zenith angle
+fn DistanceToTopAtmosphereBoundary(atmosphere: AtmosphereParameters, r: f32, mu: f32) -> f32 {
+  let discriminant = r * r * (mu * mu - 1.0) +
+      atmosphere.top_radius * atmosphere.top_radius;
+  return ClampDistance(-r * mu + SafeSqrt(discriminant));
+}
+
+// Computes distance to the bottom atmosphere boundary for a ray (r, mu)
+fn DistanceToBottomAtmosphereBoundary(atmosphere: AtmosphereParameters, r: f32, mu: f32) -> f32 {
+  let discriminant = r * r * (mu * mu - 1.0) +
+      atmosphere.bottom_radius * atmosphere.bottom_radius;
+  return ClampDistance(-r * mu - SafeSqrt(discriminant));
+}
+
+// Checks if a ray (r, mu) intersects the ground
+fn RayIntersectsGround(atmosphere: AtmosphereParameters, r: f32, mu: f32) -> bool {
+  return mu < 0.0 && r * r * (mu * mu - 1.0) +
+      atmosphere.bottom_radius * atmosphere.bottom_radius >= 0.0;
+}
+
 struct VertexInput {
   @location(0) position : vec2f,
 }
@@ -376,7 +422,7 @@ async function main() {
     };
     render();
 
-    setStatus('WebGPU ready — Sub-task 4.2: Atmosphere constants ported');
+    setStatus('WebGPU ready — Sub-task 4.3: Geometry functions ported');
 
     window.addEventListener('resize', () => {
       configureContext(canvas, gpuState.context, gpuState.device, gpuState.format);

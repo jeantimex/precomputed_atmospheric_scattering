@@ -335,7 +335,8 @@ fn vs_main(input : VertexInput) -> VertexOutput {
 
 @fragment
 fn fs_main(input : VertexOutput) -> @location(0) vec4f {
-  let view_dir = normalize(input.view_ray);
+  let view_ray = input.view_ray;
+  let view_dir = normalize(view_ray);
 
   // Camera position in atmosphere coordinates (relative to earth_center)
   let camera = vec3f(
@@ -376,20 +377,8 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4f {
   let ray_sphere_center_squared_distance = p_dot_p - p_dot_v * p_dot_v;
   let discriminant = kSphereRadius * kSphereRadius - ray_sphere_center_squared_distance;
 
-  // LOG the values for debugging - show in corner pixels
-  if (input.position.x < 1.0 && input.position.y < 1.0) {
-    // Camera position (scaled down)
-    return vec4f(abs(camera) * 0.1, 1.0);
-  }
-  if (input.position.x >= 1.0 && input.position.x < 2.0 && input.position.y < 1.0) {
-    // Sphere center
-    return vec4f(abs(kSphereCenter) * 10.0, 1.0);
-  }
-  if (input.position.x >= 2.0 && input.position.x < 3.0 && input.position.y < 1.0) {
-    // Vector from camera to sphere
-    return vec4f(abs(kSphereCenter - camera) * 0.1, 1.0);
-  }
-
+  let fragment_angular_size =
+      length(dpdx(view_ray) + dpdy(view_ray)) / max(length(view_ray), 1e-5);
   var closest_distance = 1e32;
   var final_color = sky_tone_mapped;
 
@@ -416,11 +405,19 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4f {
   if (discriminant >= 0.0) {
     let sphere_distance = -p_dot_v - sqrt(discriminant);
     if (sphere_distance > 0.0 && sphere_distance < closest_distance) {
+      let ray_sphere_distance =
+          kSphereRadius - sqrt(ray_sphere_center_squared_distance);
+      let ray_sphere_angular_distance =
+          ray_sphere_distance / max(-p_dot_v, 1e-5);
+      let sphere_alpha = min(
+          ray_sphere_angular_distance / max(fragment_angular_size, 1e-5), 1.0);
+
       let sphere_color = kSphereAlbedo;
       let sphere_exposed = sphere_color * exposure;
       let sphere_tone_mapped =
           pow(sphere_exposed / (vec3f(1.0) + sphere_exposed), vec3f(1.0 / 2.2));
-      final_color = sphere_tone_mapped;
+
+      final_color = mix(final_color, sphere_tone_mapped, sphere_alpha);
       closest_distance = sphere_distance;
     }
   }
@@ -604,7 +601,7 @@ async function main() {
     };
     render();
 
-    setStatus('WebGPU ready — Sub-task 5.1: Testing sphere intersection');
+    setStatus('WebGPU ready — Sub-task 5.3: Sphere edge anti-aliasing');
 
     window.addEventListener('resize', () => {
       configureContext(canvas, gpuState.context, gpuState.device, gpuState.format);

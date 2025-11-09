@@ -70,6 +70,11 @@ This document captures the steps required to migrate the original WebGL precompu
 2. **[x] Fullscreen Quad**: Render a clip-space quad with a simple gradient shader (e.g., `color = vec4(position.xy * 0.5 + 0.5, 0, 1)`); verify resizing still works.
 3. **[x] Uniform Buffer + Camera**: Upload matrices/camera vectors; visualize them by encoding them into colors (e.g., show eye height). Ensures buffer layout is correct.
 4. **[ ] Transmittance Lookup**: Bind the 2D LUT and use it to shade the sky dome; confirm horizon color changes as you vary zenith angle.
+   - **[ ] 4.1 Bind Textures & Samplers**: Create sampler, update bind group to include transmittance texture and sampler, verify bindings compile.
+   - **[ ] 4.2 Port Atmosphere Constants**: Port AtmosphereParameters struct, physical constants (units, PI, etc.), and type definitions from GLSL to WGSL.
+   - **[ ] 4.3 Port Geometry Functions**: Port helper functions: `ClampRadius`, `DistanceToTopAtmosphereBoundary`, `ClampCosine`, `SafeSqrt`.
+   - **[ ] 4.4 Port Transmittance Texture Mapping**: Port `GetTransmittanceTextureUvFromRMu` and inverse function to convert (r, mu) ↔ texture UV coordinates.
+   - **[ ] 4.5 Port Transmittance Lookup**: Port `GetTransmittanceToTopAtmosphereBoundary` to sample the LUT and integrate into fragment shader for realistic sky colors.
 5. **[ ] Sphere Masking**: Add the analytic sphere intersection and render it with a flat albedo so you can verify silhouettes and depth ordering.
 6. **[ ] Full Atmosphere**: Integrate scattering/irradiance functions, sun visibility, and tonemapping. Compare against WebGL presets and tweak until they match within acceptable tolerance.
 7. **[ ] Polish & Fallbacks**: Add UI toggles (e.g., show LUTs, disable sphere) to assist debugging and to verify individual components in isolation.

@@ -253,6 +253,44 @@ async function main() {
       event.preventDefault();
     }, { passive: false });
 
+    let dragMode = null;
+    let prevMouseX = 0;
+    let prevMouseY = 0;
+    const kScale = 500;
+
+    canvas.addEventListener('mousedown', (event) => {
+      dragMode = event.ctrlKey ? 'sun' : 'camera';
+      prevMouseX = event.offsetX;
+      prevMouseY = event.offsetY;
+      event.preventDefault();
+    });
+
+    canvas.addEventListener('mousemove', (event) => {
+      if (!dragMode) {
+        return;
+      }
+      const dx = prevMouseX - event.offsetX;
+      const dy = prevMouseY - event.offsetY;
+      if (dragMode === 'sun') {
+        controls.sunZenithAngleRadians -= dy / kScale;
+        controls.sunZenithAngleRadians = Math.min(Math.PI, Math.max(0, controls.sunZenithAngleRadians));
+        controls.sunAzimuthAngleRadians += dx / kScale;
+      } else {
+        controls.viewZenithAngleRadians += dy / kScale;
+        controls.viewZenithAngleRadians =
+            Math.min(Math.PI / 2, Math.max(0, controls.viewZenithAngleRadians));
+        controls.viewAzimuthAngleRadians += dx / kScale;
+      }
+      prevMouseX = event.offsetX;
+      prevMouseY = event.offsetY;
+    });
+
+    const endDrag = () => {
+      dragMode = null;
+    };
+    canvas.addEventListener('mouseup', endDrag);
+    canvas.addEventListener('mouseleave', endDrag);
+
     window.addEventListener('resize', () => {
       configureContext(canvas, gpuState.context, gpuState.device, gpuState.format);
     });

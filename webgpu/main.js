@@ -230,6 +230,16 @@ async function main() {
     render();
 
     window.addEventListener('keydown', (event) => {
+      if (event.key === '=' || event.key === '+') {
+        controls.exposure *= 1.1;
+        event.preventDefault();
+        return;
+      }
+      if (event.key === '-') {
+        controls.exposure = Math.max(0.01, controls.exposure / 1.1);
+        event.preventDefault();
+        return;
+      }
       if (applyPreset(controls, event.key)) {
         event.preventDefault();
       }

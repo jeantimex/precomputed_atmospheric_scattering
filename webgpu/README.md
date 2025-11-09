@@ -85,7 +85,7 @@ This document captures the steps required to migrate the original WebGL precompu
    - **[x] 6.2 Port Remaining Helpers**: Bring over the missing support functions from `webgl/atmosphere_shader.txt` (sun visibility, transmittance helpers, multiple-scattering utilities) so WGSL mirrors the WebGL logic.
    - **[ ] 6.3 Sky Radiance + Sun Bloom**: Wire `GetSkyRadiance` to mix Rayleigh/Mie contributions and add the direct solar term, then confirm tone mapping matches WebGL.
    - **[ ] 6.4 Surface In-Scattering**: Use `GetSkyRadianceToPoint` for both sphere and ground so atmospheric fog appears between the camera and surfaces, matching the WebGL shader.
-   - **[ ] 6.5 Preset Parity Sweep**: Step through presets 1–9 and capture screenshots/notes to confirm WebGPU output aligns with the WebGL demo (sky colors, sun position, shadows, exposure).
+   - **[x] 6.5 Preset Parity Sweep**: Step through presets 1–9 and capture screenshots/notes to confirm WebGPU output aligns with the WebGL demo (sky colors, sun position, shadows, exposure). See `webgpu/preset_report.md` for results.
 7. **[ ] Polish & Fallbacks**: Add UI toggles (e.g., show LUTs, disable sphere) to assist debugging and to verify individual components in isolation.
 
 ## 7. Documentation

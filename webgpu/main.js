@@ -246,6 +246,12 @@ async function main() {
         event.preventDefault();
       }
     });
+    canvas.addEventListener('wheel', (event) => {
+      const scale = event.deltaY > 0 ? 1.05 : 1 / 1.05;
+      controls.viewDistanceMeters *= scale;
+      controls.viewDistanceMeters = Math.max(1.0, controls.viewDistanceMeters);
+      event.preventDefault();
+    }, { passive: false });
 
     window.addEventListener('resize', () => {
       configureContext(canvas, gpuState.context, gpuState.device, gpuState.format);

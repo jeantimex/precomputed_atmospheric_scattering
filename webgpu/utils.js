@@ -40,7 +40,7 @@ function createTexture(device, spec) {
   return device.createTexture({
     size: [spec.width, spec.height, spec.depthOrArrayLayers],
     dimension: spec.dimension === '3d' ? '3d' : '2d',
-    format: 'rgba16float',
+    format: 'rgba32float',  // Changed from rgba16float to match Float32Array data
     usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
   });
 }

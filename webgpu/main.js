@@ -282,6 +282,22 @@ fn GetRMuFromTransmittanceTextureUv(atmosphere: AtmosphereParameters, uv: vec2f)
   return result;
 }
 
+// ============================================================================
+// TRANSMITTANCE LOOKUP FUNCTIONS
+// ============================================================================
+
+// Samples the transmittance LUT to get transmittance to top atmosphere boundary
+// r: radius from planet center
+// mu: cosine of zenith angle
+fn GetTransmittanceToTopAtmosphereBoundary(
+    atmosphere: AtmosphereParameters,
+    r: f32,
+    mu: f32
+) -> vec3f {
+  let uv = GetTransmittanceTextureUvFromRMu(atmosphere, r, mu);
+  return textureSampleLevel(transmittance_texture, transmittance_sampler, uv, 0.0).rgb;
+}
+
 struct VertexInput {
   @location(0) position : vec2f,
 }
@@ -305,18 +321,35 @@ fn vs_main(input : VertexInput) -> VertexOutput {
 @fragment
 fn fs_main(input : VertexOutput) -> @location(0) vec4f {
   let view_dir = normalize(input.view_ray);
-  let sun_dir = normalize(globals.sun_direction_size.xyz);
-  let cosine = max(dot(view_dir, sun_dir), 0.0);
 
-  // Sample texture at corner to prevent binding from being optimized out
-  // TODO: Use proper transmittance lookup for realistic sky colors
-  let dummy = textureSample(transmittance_texture, transmittance_sampler, vec2f(0.5, 0.5));
+  // Camera position in atmosphere coordinates (relative to earth_center)
+  let camera = vec3f(
+    globals.camera_exposure.x,
+    globals.camera_exposure.y,
+    globals.camera_exposure.z
+  );
+  let camera_pos = camera - globals.earth_center.xyz;
 
-  let dark_blue = vec3f(0.1, 0.2, 0.4);
-  let bright_orange = vec3f(1.0, 0.6, 0.2);
-  let sky_color = mix(dark_blue, bright_orange, cosine * cosine) + dummy.rgb * 0.0001;
+  // Distance from planet center (in km, since LENGTH_UNIT_IN_METERS = 1000)
+  let r = length(camera_pos);
+  let r_clamped = ClampRadius(ATMOSPHERE, r);
 
-  return vec4f(sky_color, 1.0);
+  // Cosine of zenith angle (angle between view direction and radial "up" direction)
+  let mu = dot(view_dir, normalize(camera_pos));
+  let mu_clamped = ClampCosine(mu);
+
+  // Get transmittance to top of atmosphere
+  let transmittance = GetTransmittanceToTopAtmosphereBoundary(ATMOSPHERE, r_clamped, mu_clamped);
+
+  // Apply exposure and tone mapping
+  let exposure = globals.camera_exposure.w;
+  let white_point = globals.white_point_size.xyz;
+
+  // Simple Reinhard tone mapping
+  let color = transmittance * exposure;
+  let tone_mapped = pow(color / (vec3f(1.0) + color), vec3f(1.0 / 2.2));
+
+  return vec4f(tone_mapped, 1.0);
 }
 `;
 
@@ -338,7 +371,10 @@ async function initWebGPU(targetCanvas) {
     throw new Error('Failed to acquire GPU adapter.');
   }
 
-  const device = await adapter.requestDevice();
+  // Request float32-filterable feature to enable linear filtering on rgba32float textures
+  const device = await adapter.requestDevice({
+    requiredFeatures: ['float32-filterable'],
+  });
   const context = targetCanvas.getContext('webgpu');
   if (!context) {
     throw new Error('Failed to acquire WebGPU context.');
@@ -492,7 +528,7 @@ async function main() {
     };
     render();
 
-    setStatus('WebGPU ready — Sub-task 4.4: Texture mapping ported');
+    setStatus('WebGPU ready — Milestone 4 complete: Transmittance lookup working!');
 
     window.addEventListener('resize', () => {
       configureContext(canvas, gpuState.context, gpuState.device, gpuState.format);

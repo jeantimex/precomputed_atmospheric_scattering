@@ -74,3 +74,38 @@ export async function loadPrecomputedTextures(device) {
 }
 
 export const lutSpecs = LUT_SPECS;
+
+const FULLSCREEN_QUAD_VERTS = new Float32Array([
+  -1, -1,
+  1, -1,
+  -1, 1,
+  1, 1,
+]);
+
+export function createFullscreenQuadBuffer(device) {
+  const buffer = device.createBuffer({
+    size: FULLSCREEN_QUAD_VERTS.byteLength,
+    usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+  });
+  device.queue.writeBuffer(
+      buffer, 0,
+      FULLSCREEN_QUAD_VERTS.buffer,
+      FULLSCREEN_QUAD_VERTS.byteOffset,
+      FULLSCREEN_QUAD_VERTS.byteLength);
+  return buffer;
+}
+
+const GLOBAL_UNIFORM_FLOAT_COUNT = 64; // 256 bytes
+export const GLOBAL_UNIFORM_BUFFER_SIZE =
+    GLOBAL_UNIFORM_FLOAT_COUNT * Float32Array.BYTES_PER_ELEMENT;
+
+export function createGlobalUniformBuffer(device) {
+  return device.createBuffer({
+    size: GLOBAL_UNIFORM_BUFFER_SIZE,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  });
+}
+
+export function writeGlobalUniforms(device, buffer, data) {
+  device.queue.writeBuffer(buffer, 0, data.buffer, data.byteOffset, data.byteLength);
+}

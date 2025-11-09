@@ -22,8 +22,8 @@ This document captures the steps required to migrate the original WebGL precompu
    - [x] Create `GPUTexture` objects for transmittance & irradiance (2D) and scattering (3D).
    - [x] Set usage flags `TEXTURE_BINDING | COPY_DST`.
    - [x] Upload `.dat` payloads with `device.queue.writeTexture`.
-2. Build uniform buffers for matrices, camera/sun/exposure, and any extra scalars. Group related floats in structs that match WGSL alignment rules.
-3. Keep the fullscreen quad vertex buffer (two triangles) but allocate it via `device.createBuffer({ usage: VERTEX | COPY_DST })`.
+2. Build uniform buffers for matrices, camera/sun/exposure, and any extra scalars. Group related floats in structs that match WGSL alignment rules. ✅
+3. Keep the fullscreen quad vertex buffer (two triangles) but allocate it via `device.createBuffer({ usage: VERTEX | COPY_DST })`. ✅
 
 ## 4. WGSL Shader Port
 1. Convert `webgl/vertex_shader.txt` to WGSL:
@@ -68,7 +68,7 @@ This document captures the steps required to migrate the original WebGL precompu
 ## 7. Incremental Demo Checklist
 1. **[x] Context + Clear Pass**: Run `npm run dev`, navigate to the WebGPU demo, confirm the canvas clears to blue (or chosen debug color).
 2. **[x] Fullscreen Quad**: Render a clip-space quad with a simple gradient shader (e.g., `color = vec4(position.xy * 0.5 + 0.5, 0, 1)`); verify resizing still works.
-3. **[ ] Uniform Buffer + Camera**: Upload matrices/camera vectors; visualize them by encoding them into colors (e.g., show eye height). Ensures buffer layout is correct.
+3. **[x] Uniform Buffer + Camera**: Upload matrices/camera vectors; visualize them by encoding them into colors (e.g., show eye height). Ensures buffer layout is correct.
 4. **[ ] Transmittance Lookup**: Bind the 2D LUT and use it to shade the sky dome; confirm horizon color changes as you vary zenith angle.
 5. **[ ] Sphere Masking**: Add the analytic sphere intersection and render it with a flat albedo so you can verify silhouettes and depth ordering.
 6. **[ ] Full Atmosphere**: Integrate scattering/irradiance functions, sun visibility, and tonemapping. Compare against WebGL presets and tweak until they match within acceptable tolerance.

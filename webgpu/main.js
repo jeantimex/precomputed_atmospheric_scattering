@@ -6,16 +6,7 @@ import {
 } from './utils.js';
 import skyShaderWGSL from './shader.wgsl?raw';
 
-const statusLabel = document.getElementById('status');
 const canvas = document.getElementById('webgpu-canvas');
-
-function setStatus(message) {
-  if (statusLabel) {
-    statusLabel.textContent = message;
-  } else {
-    console.info('[WebGPU status]', message);
-  }
-}
 
 const LENGTH_UNIT_IN_METERS = 1000.0;
 const SUN_ANGULAR_RADIUS = 0.00935 / 2.0;
@@ -196,7 +187,6 @@ function applyPreset(controls, presetKey) {
     return false;
   }
   Object.assign(controls, preset);
-  setStatus(`WebGPU ready — Sub-task 6.5: Preset ${presetKey}`);
   return true;
 }
 
@@ -238,8 +228,6 @@ async function main() {
       requestAnimationFrame(render);
     };
     render();
-
-    setStatus('WebGPU ready — Sub-task 6.5: Preset parity sweep');
 
     window.addEventListener('keydown', (event) => {
       if (applyPreset(controls, event.key)) {
@@ -305,7 +293,6 @@ async function main() {
     });
   } catch (error) {
     console.error(error);
-    setStatus(error.message || 'WebGPU initialization failed');
   }
 }
 

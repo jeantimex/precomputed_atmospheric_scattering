@@ -71,11 +71,13 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4f {
   let sun_dir = normalize(globals.sun_direction_size.xyz);
   let cosine = max(dot(view_dir, sun_dir), 0.0);
 
-  // TODO: Use transmittance_texture for realistic sky colors
-  // For now, keep test gradient to verify bindings compile correctly
+  // Sample texture at corner to prevent binding from being optimized out
+  // TODO: Use proper transmittance lookup for realistic sky colors
+  let dummy = textureSample(transmittance_texture, transmittance_sampler, vec2f(0.5, 0.5));
+
   let dark_blue = vec3f(0.1, 0.2, 0.4);
   let bright_orange = vec3f(1.0, 0.6, 0.2);
-  let sky_color = mix(dark_blue, bright_orange, cosine * cosine);
+  let sky_color = mix(dark_blue, bright_orange, cosine * cosine) + dummy.rgb * 0.0001;
 
   return vec4f(sky_color, 1.0);
 }

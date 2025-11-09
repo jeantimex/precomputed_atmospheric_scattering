@@ -390,19 +390,42 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4f {
     return vec4f(abs(kSphereCenter - camera) * 0.1, 1.0);
   }
 
-  if (discriminant >= 0.0) {
-    let distance_to_intersection = -p_dot_v - sqrt(discriminant);
-    if (distance_to_intersection > 0.0) {
-      // Render sphere with flat albedo color (light gray)
-      let sphere_color = kSphereAlbedo;
-      let sphere_exposed = sphere_color * exposure;
-      let sphere_tone_mapped = pow(sphere_exposed / (vec3f(1.0) + sphere_exposed), vec3f(1.0 / 2.2));
-      return vec4f(sphere_tone_mapped, 1.0);
+  var closest_distance = 1e32;
+  var final_color = sky_tone_mapped;
+
+  // Check for ground intersection (planet surface) so we can layer it behind the sphere.
+  {
+    let earth_offset = camera - globals.earth_center.xyz;
+    let earth_dot_v = dot(earth_offset, view_dir);
+    let earth_dot_earth = dot(earth_offset, earth_offset);
+    let earth_radius_sq = ATMOSPHERE.bottom_radius * ATMOSPHERE.bottom_radius;
+    let ray_center_sq = earth_dot_earth - earth_dot_v * earth_dot_v;
+    let ground_discriminant = earth_radius_sq - ray_center_sq;
+    if (ground_discriminant >= 0.0) {
+      let ground_distance = -earth_dot_v - sqrt(ground_discriminant);
+      if (ground_distance > 0.0) {
+        let ground_exposed = kGroundAlbedo * exposure;
+        let ground_tone_mapped = pow(
+            ground_exposed / (vec3f(1.0) + ground_exposed), vec3f(1.0 / 2.2));
+        final_color = ground_tone_mapped;
+        closest_distance = ground_distance;
+      }
     }
   }
 
-  // No intersection - return background sky
-  return vec4f(sky_tone_mapped, 1.0);
+  if (discriminant >= 0.0) {
+    let sphere_distance = -p_dot_v - sqrt(discriminant);
+    if (sphere_distance > 0.0 && sphere_distance < closest_distance) {
+      let sphere_color = kSphereAlbedo;
+      let sphere_exposed = sphere_color * exposure;
+      let sphere_tone_mapped =
+          pow(sphere_exposed / (vec3f(1.0) + sphere_exposed), vec3f(1.0 / 2.2));
+      final_color = sphere_tone_mapped;
+      closest_distance = sphere_distance;
+    }
+  }
+
+  return vec4f(final_color, 1.0);
 }
 `;
 

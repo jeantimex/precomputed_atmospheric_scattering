@@ -1,20 +1,20 @@
 const LUT_SPECS = {
   transmittance: {
-    url: new URL('./transmittance.dat', import.meta.url).href,
+    url: new URL('../assets/transmittance.dat', import.meta.url).href,
     width: 256,
     height: 64,
     depthOrArrayLayers: 1,
     dimension: '2d',
   },
   scattering: {
-    url: new URL('./scattering.dat', import.meta.url).href,
+    url: new URL('../assets/scattering.dat', import.meta.url).href,
     width: 256,
     height: 128,
     depthOrArrayLayers: 32,
     dimension: '3d',
   },
   irradiance: {
-    url: new URL('./irradiance.dat', import.meta.url).href,
+    url: new URL('../assets/irradiance.dat', import.meta.url).href,
     width: 64,
     height: 16,
     depthOrArrayLayers: 1,

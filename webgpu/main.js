@@ -196,7 +196,6 @@ async function main() {
     const gpuState = await initWebGPU(canvas);
     const pipeline = await initPipeline(gpuState.device, gpuState.format);
     const precomputedTextures = await loadPrecomputedTextures(gpuState.device);
-    console.info('Loaded LUT textures:', precomputedTextures);
 
     // Create sampler for LUT textures (linear filtering, clamp to edge)
     const lutSampler = gpuState.device.createSampler({

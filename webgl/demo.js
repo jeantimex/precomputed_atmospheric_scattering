@@ -58,7 +58,7 @@ initializes the WebGL canvas, declares the fields of the class, sets up the
 event handlers and starts the resource loading and the render loop:
 */
 
-class Demo {
+export default class Demo {
   constructor(rootElement) {
     this.canvas = rootElement.querySelector('#glcanvas');
     this.canvas.style.width = `${rootElement.clientWidth}px`;
@@ -108,12 +108,13 @@ in the <code>Utils</code> class below):
 
   init() {
     const gl = this.gl;
+    const asset = (name) => new URL(name, import.meta.url).href;
     this.vertexBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
     gl.bufferData(gl.ARRAY_BUFFER,
        new Float32Array([-1, -1, +1, -1, -1, +1, +1, +1]), gl.STATIC_DRAW);
 
-    Utils.loadTextureData('transmittance.dat', (data) => {
+    Utils.loadTextureData(asset('transmittance.dat'), (data) => {
       this.transmittanceTexture =
           Utils.createTexture(gl, gl.TEXTURE0, gl.TEXTURE_2D);
       gl.texImage2D(gl.TEXTURE_2D, 0,
@@ -121,7 +122,7 @@ in the <code>Utils</code> class below):
           TRANSMITTANCE_TEXTURE_WIDTH, TRANSMITTANCE_TEXTURE_HEIGHT, 0, gl.RGBA,
           gl.FLOAT, data);
     });
-    Utils.loadTextureData('scattering.dat', (data) => {
+    Utils.loadTextureData(asset('scattering.dat'), (data) => {
       this.scatteringTexture =
           Utils.createTexture(gl, gl.TEXTURE1, gl.TEXTURE_3D);
       gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE);
@@ -129,7 +130,7 @@ in the <code>Utils</code> class below):
           SCATTERING_TEXTURE_HEIGHT, SCATTERING_TEXTURE_DEPTH, 0, gl.RGBA,
           gl.FLOAT, data);
     });
-    Utils.loadTextureData('irradiance.dat', (data) => {
+    Utils.loadTextureData(asset('irradiance.dat'), (data) => {
       this.irradianceTexture =
           Utils.createTexture(gl, gl.TEXTURE2, gl.TEXTURE_2D);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, IRRADIANCE_TEXTURE_WIDTH,

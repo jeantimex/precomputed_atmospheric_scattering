@@ -2,7 +2,7 @@
   <head>
     <meta charset="utf-8">
     <title>Precomputed Atmospheric Scattering - WebGL Demo</title>
-    <script type="text/javascript" src="demo.js"></script>
+    <script type="module" src="demo.js"></script>
     <style>
       html, body {
         position: relative;
@@ -27,7 +27,7 @@
       }
     </style>
   </head>
-  <body onload="new Demo(document.body);">
+  <body>
     <canvas id="glcanvas" width="400" height="300"></canvas>
     <ul id="help">
       <li>
@@ -47,5 +47,9 @@
         </ul>
       </li>
     </ul>
+    <script type="module">
+      import Demo from './demo.js';
+      new Demo(document.body);
+    </script>
   </body>
 </html>

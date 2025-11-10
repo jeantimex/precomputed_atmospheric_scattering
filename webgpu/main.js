@@ -26,6 +26,22 @@ import skyShaderWGSL from './shader.wgsl?raw';
 // Get references to DOM elements
 const canvas = document.getElementById('webgpu-canvas');
 const helpElement = document.getElementById('help');
+const statusElement = document.getElementById('status-message');
+
+/**
+ * Shows a centered status message and hides the instruction overlay
+ *
+ * @param {string} message - Message to display to the user
+ */
+function showStatusMessage(message) {
+  if (statusElement) {
+    statusElement.textContent = message;
+    statusElement.classList.remove('hidden');
+  }
+  if (helpElement) {
+    helpElement.classList.add('hidden');
+  }
+}
 
 /**
  * Physical Constants
@@ -124,18 +140,12 @@ function copyRowMajorToColumnMajor(target, offset, source) {
  * @returns {Promise<{device: GPUDevice, context: GPUCanvasContext, format: GPUTextureFormat}>}
  */
 async function initWebGPU(targetCanvas) {
-  // WebGPU requires a secure context (HTTPS), except on localhost
-  const isLocalhost = ['localhost', '127.0.0.1', '', '::1']
-      .includes(window.location.hostname);
-  if (!window.isSecureContext && !isLocalhost) {
-    throw new Error(
-        'WebGPU requires a secure context. Run `npm run dev` and open http://localhost:5173/webgpu/.');
-  }
-
   // Check if WebGPU is available in the browser
   if (!navigator.gpu) {
-    throw new Error(
-        'WebGPU is not available. Use Chrome 113+/Edge 113+ with the WebGPU flag enabled.');
+    const message =
+        'WebGPU is not available in this browser. Please use a WebGPU-enabled browser/version.';
+    showStatusMessage(message);
+    throw new Error(message);
   }
 
   // Request a GPU adapter (represents a physical GPU)
@@ -565,6 +575,9 @@ async function main() {
     });
   } catch (error) {
     console.error(error);
+    const fallbackMessage =
+        'Unable to start the WebGPU demo in this browser. See console for details.';
+    showStatusMessage(error instanceof Error && error.message ? error.message : fallbackMessage);
   }
 }
 

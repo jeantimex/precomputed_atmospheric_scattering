@@ -63,6 +63,29 @@ li {
 }
 
 /* ============================================================================
+ * Status Message - WebGPU availability notice
+ * ============================================================================ */
+
+.status {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 1.1rem;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.75);
+  padding: 1rem 1.5rem;
+  border-radius: 0.5rem;
+  max-width: 90%;
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.35);
+}
+
+.status.hidden {
+  display: none;
+}
+
+/* ============================================================================
  * Repository Banner - GitHub link at bottom
  * ============================================================================ */
 

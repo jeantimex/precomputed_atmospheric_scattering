@@ -58,6 +58,10 @@ initializes the WebGL canvas, declares the fields of the class, sets up the
 event handlers and starts the resource loading and the render loop:
 */
 
+import vertexShaderUrl from './vertex_shader.txt?url';
+import fragmentShaderUrl from './fragment_shader.txt?url';
+import atmosphereShaderUrl from './atmosphere_shader.txt?url';
+
 export default class Demo {
   constructor(rootElement) {
     this.canvas = rootElement.querySelector('#glcanvas');
@@ -137,13 +141,13 @@ in the <code>Utils</code> class below):
           IRRADIANCE_TEXTURE_HEIGHT, 0, gl.RGBA, gl.FLOAT, data);
     });
 
-    Utils.loadShaderSource(asset('vertex_shader.txt'), (source) => {
+    Utils.loadShaderSource(vertexShaderUrl, (source) => {
       this.vertexShaderSource = source;
     });
-    Utils.loadShaderSource(asset('fragment_shader.txt'), (source) => {
+    Utils.loadShaderSource(fragmentShaderUrl, (source) => {
       this.fragmentShaderSource = source;
     });
-    Utils.loadShaderSource(asset('atmosphere_shader.txt'), (source) => {
+    Utils.loadShaderSource(atmosphereShaderUrl, (source) => {
       this.atmosphereShaderSource = source;
     });
   }

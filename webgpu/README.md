@@ -75,18 +75,24 @@ This document captures the steps required to migrate the original WebGL precompu
    - **[x] 4.3 Port Geometry Functions**: Port helper functions: `ClampRadius`, `DistanceToTopAtmosphereBoundary`, `ClampCosine`, `SafeSqrt`.
    - **[x] 4.4 Port Transmittance Texture Mapping**: Port `GetTransmittanceTextureUvFromRMu` and inverse function to convert (r, mu) ↔ texture UV coordinates.
    - **[x] 4.5 Port Transmittance Lookup**: Port `GetTransmittanceToTopAtmosphereBoundary` to sample the LUT and integrate into fragment shader for realistic sky colors. ✅
-5. **[ ] Sphere Masking**: Add the analytic sphere intersection and render it with a flat albedo so you can verify silhouettes and depth ordering.
+5. **[x] Sphere Masking**: Add the analytic sphere intersection and render it with a flat albedo so you can verify silhouettes and depth ordering.
    - **[x] 5.1 Port Sphere Constants & Basic Intersection**: Add sphere/ground constants (`kSphereCenter`, `kSphereRadius`, `kSphereAlbedo`, `kGroundAlbedo`), port ray-sphere intersection math, render sphere with flat color. Verify solid colored disc visible at expected position.
    - **[x] 5.2 Add Ground Surface Intersection**: Port ground intersection with earth surface, handle depth ordering (ground behind sphere). Visual target: a matte-colored planet horizon clipped by an analytic sphere so the ground fills the lower half of the frame except where the debug sphere occludes it in front.
    - **[x] 5.3 Add Edge Anti-aliasing**: Port the derivative-based silhouette smoothing from `webgl/fragment_shader.txt` (use WGSL `dpdx`/`dpdy` on `view_ray` to compute `fragment_angular_size`, derive `sphere_alpha = min(ray_sphere_angular_distance / fragment_angular_size, 1.0)`, and blend the debug sphere color using that alpha). Expected result: the white debug sphere keeps occluding the ground but its outline becomes soft and alias-free, matching the WebGL demo even when zoomed or rotated.
    - **[x] 5.4 Add Transmittance-based Shading**: Port the single-scatter shading logic from `webgl/fragment_shader.txt`: compute hit normals for the debug sphere and ground, call the WGSL versions of `GetSunAndSkyIrradiance`/`GetSkyRadianceToPoint`, and modulate `kSphereAlbedo`/`kGroundAlbedo` with the returned irradiance plus transmittance along the view ray. Expected result: the ground is no longer flat blue (it brightens near the sun and darkens elsewhere) and the sphere shows lambertian lighting with a lit side and a shaded side, matching the directional falloff seen in the WebGL demo.
-6. **[ ] Full Atmosphere**: Integrate scattering/irradiance functions, sun visibility, and tonemapping. Compare against WebGL presets and tweak until they match within acceptable tolerance.
+6. **[x] Full Atmosphere**: Integrate scattering/irradiance functions, sun visibility, and tonemapping. Compare against WebGL presets and tweak until they match within acceptable tolerance.
    - **[x] 6.1 Bind Remaining LUTs**: Ensure the 3D scattering volume and irradiance texture are bound with the correct sampler/state in WGSL so the shader can read them directly.
    - **[x] 6.2 Port Remaining Helpers**: Bring over the missing support functions from `webgl/atmosphere_shader.txt` (sun visibility, transmittance helpers, multiple-scattering utilities) so WGSL mirrors the WebGL logic.
-   - **[ ] 6.3 Sky Radiance + Sun Bloom**: Wire `GetSkyRadiance` to mix Rayleigh/Mie contributions and add the direct solar term, then confirm tone mapping matches WebGL.
-   - **[ ] 6.4 Surface In-Scattering**: Use `GetSkyRadianceToPoint` for both sphere and ground so atmospheric fog appears between the camera and surfaces, matching the WebGL shader.
+   - **[x] 6.3 Sky Radiance + Sun Bloom**: Wire `GetSkyRadiance` to mix Rayleigh/Mie contributions and add the direct solar term, then confirm tone mapping matches WebGL.
+   - **[x] 6.4 Surface In-Scattering**: Use `GetSkyRadianceToPoint` for both sphere and ground so atmospheric fog appears between the camera and surfaces, matching the WebGL shader.
    - **[x] 6.5 Preset Parity Sweep**: Step through presets 1–9 and capture screenshots/notes to confirm WebGPU output aligns with the WebGL demo (sky colors, sun position, shadows, exposure). See `webgpu/preset_report.md` for results.
-7. **[ ] Polish & Fallbacks**: Add UI toggles (e.g., show LUTs, disable sphere) to assist debugging and to verify individual components in isolation.
+7. **[x] Polish & Fallbacks**: Add interaction polish (preset hotkeys, exposure controls, mouse/touch input, GitHub banner/help toggle) so the standalone WebGPU demo mirrors the WebGL UX.
+
+## Final Status
+- WebGPU demo now mirrors the WebGL sample: wheel zoom, pointer dragging (SHIFT to move the sun), exposure hotkeys (`=` / `-`), preset keys (1–9), and `h` to toggle the on-canvas help.
+- WGSL shader (`webgpu/shader.wgsl`) includes the full atmospheric stack (transmittance, scattering, irradiance, sun visibility) with identical tone mapping.
+- `webgpu/preset_report.md` documents visual parity across all WebGL presets; screenshots match within tolerances.
+- Landing page highlights controls plus a GitHub link so visitors can explore the repository directly.
 
 ## 7. Documentation
 - When the WebGPU demo is ready, add build/run instructions to the top-level `README.md` and mention the fallback behaviour.

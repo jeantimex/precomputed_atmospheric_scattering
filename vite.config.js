@@ -27,7 +27,7 @@ export default defineConfig({
   },
 
   // Configure asset handling
-  assetsInclude: ['**/*.dat'], // Ensure .dat files are treated as assets
+  assetsInclude: ['**/*.dat', '**/*.txt'], // Ensure .dat and .txt files are treated as assets
 
   // Configure public directory (where static assets are stored)
   publicDir: 'public',

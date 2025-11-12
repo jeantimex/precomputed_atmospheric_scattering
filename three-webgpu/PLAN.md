@@ -22,11 +22,11 @@ This document outlines how to port the existing native WebGPU atmosphere demo (`
    - [ ] Ensure `/three-webgpu/` routes correctly via Vite (update `vite.config` if needed).  
      _Verification_: `npm run dev -- --open /three-webgpu/` loads the page with canvas + overlays, but no rendering yet.
 2. **Install deps**
-   - [ ] Add Three.js, `three/examples/jsm/controls/OrbitControls` (if needed), and any helper libs to the root `package.json` (or local one) without touching `/webgpu/` dependencies.  
+   - [x] Add Three.js, `three/examples/jsm/controls/OrbitControls` (if needed), and any helper libs to the root `package.json` (or local one) without touching `/webgpu/` dependencies.  
      _Verification_: `npm install` updates lockfile without breaking existing scripts; `npm run lint` (if available) still passes.
 3. **Hello WebGPU via Three.js**
-   - [ ] Initialize `WebGPURenderer`, `Scene`, `Camera`, and render a solid color/fullscreen quad using Three’s `pass` helper.
-   - [ ] Include device feature checks mirroring `initWebGPU` from `webgpu/main.js`.  
+   - [x] Initialize `WebGPURenderer`, `Scene`, `Camera`, and render a solid color/fullscreen quad using Three’s `pass` helper.
+   - [x] Include device feature checks mirroring `initWebGPU` from `webgpu/main.js`.  
      _Verification_: Running `/three-webgpu/` shows a colored quad, and browser devtools confirm WebGPU is in use (no fallback to WebGL).
 
 ---

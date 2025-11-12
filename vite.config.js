@@ -16,6 +16,7 @@ export default defineConfig({
         main: resolve(__dirname, 'index.html'),
         webgl: resolve(__dirname, 'webgl/index.html'),
         webgpu: resolve(__dirname, 'webgpu/index.html'),
+        threewebgpu: resolve(__dirname, 'three-webgpu/index.html'),
       },
     },
   },

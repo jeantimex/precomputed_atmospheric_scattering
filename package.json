@@ -17,6 +17,6 @@
   "dependencies": {
     "gh-pages": "^6.3.0",
     "lil-gui": "^0.20.0",
-    "three": "^0.175.0"
+    "three": "^0.181.1"
   }
 }

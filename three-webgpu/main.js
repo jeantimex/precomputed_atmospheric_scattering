@@ -9,6 +9,8 @@ import {
 } from 'three';
 import { WebGPURenderer } from 'three/webgpu';
 import { loadPrecomputedTextures } from './luts.js';
+import { DEFAULT_STATE } from './state.js';
+import { updateAtmosphereUniforms } from './uniforms.js';
 
 /**
  * Shared DOM references
@@ -100,6 +102,12 @@ async function init() {
       isFloat32: textures.irradiance.type === FloatType,
     },
   });
+
+  const uniforms = updateAtmosphereUniforms(
+      { width: canvas.width, height: canvas.height },
+      DEFAULT_STATE,
+  );
+  console.log('Global uniform sample (camera + sun):', Array.from(uniforms.slice(32, 44)));
 
   const onResize = () => updateRendererSize(renderer, camera);
   window.addEventListener('resize', onResize);

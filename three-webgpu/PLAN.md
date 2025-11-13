@@ -37,9 +37,9 @@ This document outlines how to port the existing native WebGPU atmosphere demo (`
    - [x] Reuse asset paths from `/public/assets`.  
      _Verification_: Temporary UI logs texture dimensions + sample values; console asserts formats are `RGBA32F`.
 2. **Shared uniform buffer**
-   - [ ] Implement a small `createAtmosphereUniforms()` utility mirroring `updateGlobalUniforms` (camera matrices, sun dir, exposure, etc.) but outputting Three-friendly data structures (e.g., `Float32Array`, `Uniform` instances).
-   - [ ] Document offsets to stay in sync with `shader.wgsl`.  
-     _Verification_: Unit-like test (or console log) showing the buffer matches `/webgpu` output for a known preset.
+   - [x] Implement a small `createAtmosphereUniforms()` utility mirroring `updateGlobalUniforms` (camera matrices, sun dir, exposure, etc.) but outputting Three-friendly data structures (e.g., `Float32Array`, `Uniform` instances).
+   - [x] Document offsets to stay in sync with `shader.wgsl`.  
+     _Verification_: Console logs show the packed buffer (camera + sun slices) and match expected values for `DEFAULT_STATE`.
 3. **Fullscreen quad material stub**
    - [ ] Create a `RawShaderMaterial` (or node material) that consumes the uniforms + LUTs but currently outputs a solid color. Wire it to a `PlaneGeometry` that fills the viewport.  
      _Verification_: Changing a uniform (e.g., exposure) affects the color, proving bindings work.

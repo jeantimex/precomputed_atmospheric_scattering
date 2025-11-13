@@ -17,9 +17,9 @@ This document outlines how to port the existing native WebGPU atmosphere demo (`
 
 ## 1. Baseline Setup
 1. **Scaffold entry point**
-   - [ ] Copy `index.html` / `styles.css` structure from `/webgpu/` into `/three-webgpu/` (shared assets where possible).
-   - [ ] Create `main.ts` (or `.js`) that will bootstrap Three.js (leave TODOs for later steps).
-   - [ ] Ensure `/three-webgpu/` routes correctly via Vite (update `vite.config` if needed).  
+   - [x] Copy `index.html` / `styles.css` structure from `/webgpu/` into `/three-webgpu/` (shared assets where possible).
+   - [x] Create `main.ts` (or `.js`) that will bootstrap Three.js (leave TODOs for later steps).
+   - [x] Ensure `/three-webgpu/` routes correctly via Vite (update `vite.config` if needed).  
      _Verification_: `npm run dev -- --open /three-webgpu/` loads the page with canvas + overlays, but no rendering yet.
 2. **Install deps**
    - [x] Add Three.js, `three/examples/jsm/controls/OrbitControls` (if needed), and any helper libs to the root `package.json` (or local one) without touching `/webgpu/` dependencies.  
@@ -33,8 +33,8 @@ This document outlines how to port the existing native WebGPU atmosphere demo (`
 
 ## 2. Resource & Uniform Translation
 1. **Port LUT loader**
-   - [ ] Extract `loadPrecomputedTextures` logic from `/webgpu/utils.js` into a reusable module under `/three-webgpu/`, swapping `device.queue.writeTexture` for Three’s texture constructors (likely `DataTexture`/`Data3DTexture`).
-   - [ ] Reuse asset paths from `/public/assets`.  
+   - [x] Extract `loadPrecomputedTextures` logic from `/webgpu/utils.js` into a reusable module under `/three-webgpu/`, swapping `device.queue.writeTexture` for Three’s texture constructors (likely `DataTexture`/`Data3DTexture`).
+   - [x] Reuse asset paths from `/public/assets`.  
      _Verification_: Temporary UI logs texture dimensions + sample values; console asserts formats are `RGBA32F`.
 2. **Shared uniform buffer**
    - [ ] Implement a small `createAtmosphereUniforms()` utility mirroring `updateGlobalUniforms` (camera matrices, sun dir, exposure, etc.) but outputting Three-friendly data structures (e.g., `Float32Array`, `Uniform` instances).

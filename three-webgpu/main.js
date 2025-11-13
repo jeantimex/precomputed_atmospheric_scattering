@@ -1,5 +1,6 @@
 import {
   Color,
+  FloatType,
   Mesh,
   MeshBasicMaterial,
   PerspectiveCamera,
@@ -7,6 +8,7 @@ import {
   Scene,
 } from 'three';
 import { WebGPURenderer } from 'three/webgpu';
+import { loadPrecomputedTextures } from './luts.js';
 
 /**
  * Shared DOM references
@@ -78,6 +80,26 @@ async function init() {
 
   await renderer.init();
   updateRendererSize(renderer, camera);
+
+  const textures = await loadPrecomputedTextures();
+  console.log('Loaded LUT textures:', {
+    transmittance: {
+      size: textures.transmittance.image.data.length,
+      dimensions: `${textures.transmittance.image.width}x${textures.transmittance.image.height}`,
+      isFloat32: textures.transmittance.type === FloatType,
+      sample: Array.from(textures.transmittance.image.data.slice(0, 4)),
+    },
+    scattering: {
+      size: textures.scattering.image.data.length,
+      dimensions: `${textures.scattering.image.width}x${textures.scattering.image.height}x${textures.scattering.image.depth}`,
+      isFloat32: textures.scattering.type === FloatType,
+    },
+    irradiance: {
+      size: textures.irradiance.image.data.length,
+      dimensions: `${textures.irradiance.image.width}x${textures.irradiance.image.height}`,
+      isFloat32: textures.irradiance.type === FloatType,
+    },
+  });
 
   const onResize = () => updateRendererSize(renderer, camera);
   window.addEventListener('resize', onResize);

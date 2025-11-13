@@ -41,8 +41,8 @@ This document outlines how to port the existing native WebGPU atmosphere demo (`
    - [x] Document offsets to stay in sync with `shader.wgsl`.  
      _Verification_: Console logs show the packed buffer (camera + sun slices) and match expected values for `DEFAULT_STATE`.
 3. **Fullscreen quad material stub**
-   - [ ] Create a `RawShaderMaterial` (or node material) that consumes the uniforms + LUTs but currently outputs a solid color. Wire it to a `PlaneGeometry` that fills the viewport.  
-     _Verification_: Changing a uniform (e.g., exposure) affects the color, proving bindings work.
+   - [x] Create a `RawShaderMaterial` (or node material) that consumes the uniforms + LUTs but currently outputs a solid color. Wire it to a `PlaneGeometry` that fills the viewport.  
+     _Verification_: Node-material now samples the transmittance LUT and modulates it by exposure; updating exposure changes output hue in real time.
 
 ---
 

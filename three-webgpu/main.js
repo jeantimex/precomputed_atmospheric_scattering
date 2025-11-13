@@ -1,13 +1,15 @@
 import {
+  BufferAttribute,
+  BufferGeometry,
   Color,
   FloatType,
   Mesh,
-  MeshBasicMaterial,
   PerspectiveCamera,
-  PlaneGeometry,
   Scene,
 } from 'three';
 import { WebGPURenderer } from 'three/webgpu';
+import { uv, uniform, uniformTexture, texture, vec3 } from 'three/tsl';
+import MeshBasicNodeMaterial from 'three/src/materials/nodes/MeshBasicNodeMaterial.js';
 import { loadPrecomputedTextures } from './luts.js';
 import { DEFAULT_STATE } from './state.js';
 import { updateAtmosphereUniforms } from './uniforms.js';
@@ -75,8 +77,24 @@ async function init() {
   /**
    * Create a simple fullscreen quad to prove rendering works.
    */
-  const geometry = new PlaneGeometry(2, 2);
-  const material = new MeshBasicMaterial({ color: 0x1d7cf2 });
+  const geometry = new BufferGeometry();
+  geometry.setAttribute('position', new BufferAttribute(new Float32Array([
+    -1, -1, 0,
+    3, -1, 0,
+    -1, 3, 0,
+  ]), 3));
+  geometry.setAttribute('uv', new BufferAttribute(new Float32Array([
+    0, 0,
+    2, 0,
+    0, 2,
+  ]), 2));
+
+  const transmittanceNode = uniformTexture();
+  const exposureNode = uniform(DEFAULT_STATE.exposure);
+  const debugColor = texture(transmittanceNode, uv().mul(0.5)).rgb.mul(exposureNode.mul(0.05));
+  const material = new MeshBasicNodeMaterial({
+    colorNode: vec3(debugColor),
+  });
   const quad = new Mesh(geometry, material);
   scene.add(quad);
 
@@ -108,6 +126,8 @@ async function init() {
       DEFAULT_STATE,
   );
   console.log('Global uniform sample (camera + sun):', Array.from(uniforms.slice(32, 44)));
+
+  transmittanceNode.value = textures.transmittance;
 
   const onResize = () => updateRendererSize(renderer, camera);
   window.addEventListener('resize', onResize);
